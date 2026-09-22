@@ -1,7 +1,6 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class DialogueUI : MonoBehaviour
 {
@@ -54,11 +53,8 @@ public class DialogueUI : MonoBehaviour
         yield return new WaitForSeconds(0.35f);
         if (continuePrompt != null) continuePrompt.SetActive(true);
 
-        while (true)
+        while (!AdvanceInput.WasPressedThisFrame())
         {
-            var mouse = Mouse.current;
-            bool advance = mouse != null && mouse.leftButton.wasPressedThisFrame;
-            if (advance) break;
             yield return null;
         }
 

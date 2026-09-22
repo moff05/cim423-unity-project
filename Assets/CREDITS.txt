@@ -1,0 +1,26 @@
+Third-party asset credits for this project.
+
+- Kenney "Space Kit" (barrels, rail cart, gate frame, console, monitor, window
+  frame, satellite dish)
+  https://kenney.nl/assets/space-kit
+  License: CC0 1.0 Universal (no attribution required, credited anyway)
+
+- "Star Sparrow Modular Spaceship" by Ebal Studios (cinematic ship model,
+  StarSparrow1 prefab)
+  https://assetstore.unity.com/packages/3d/vehicles/space/star-sparrow-modular-spaceship-73167
+  License: Unity Asset Store EULA (free asset, usable in commercial/free projects
+  per publisher FAQ)
+
+- "Voices Sound Effect Library" by Little Robot Sound Factory (RecorderBreath.ogg,
+  sourced from Human_DyingBreath_00.wav)
+  https://opengameart.org/content/voices-sound-effect-library
+  License: CC-BY 3.0 - attribution required.
+  Attribution: "Little Robot Sound Factory, www.littlerobotsoundfactory.com"
+
+- BassRumbleHorror.ogg, Glitch1-4.ogg: synthesized locally with ffmpeg
+  (sine/noise generators + filters), no external license.
+
+Earlier-session assets (character silhouettes prior to the primitive-built
+rebuild, ambient/breathing loops, etc.) were also sourced from Kenney and
+OpenGameArt.org under CC0/CC-BY terms - re-verify exact sources before any
+public submission if a complete credits list is required.

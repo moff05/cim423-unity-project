@@ -9,9 +9,14 @@ public class FreeLookWalker : MonoBehaviour
     public float minPitch = -80f;
     public float maxPitch = 80f;
 
+    public float bobFrequency = 9f;
+    public float bobAmplitude = 0.045f;
+
     float yaw;
     float pitch;
     bool cursorLocked = true;
+    float bobTimer;
+    Vector3 previousBobOffset;
 
     void Start()
     {
@@ -26,6 +31,11 @@ public class FreeLookWalker : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
         if (kb == null) return;
+
+        // Undo last frame's bob first, so an external teleport (e.g. the
+        // Airlock moving the player into the Corridor) that changed
+        // transform.position between frames isn't clobbered below.
+        transform.position -= previousBobOffset;
 
         if (kb.escapeKey.wasPressedThisFrame) SetCursorLock(false);
         if (mouse != null && mouse.leftButton.wasPressedThisFrame && !cursorLocked) SetCursorLock(true);
@@ -50,6 +60,14 @@ public class FreeLookWalker : MonoBehaviour
         move.Normalize();
         float speed = moveSpeed * (kb.leftShiftKey.isPressed ? sprintMultiplier : 1f);
         transform.position += move * speed * Time.deltaTime;
+
+        // Subtle head-bob so moving reads as walking, not floating.
+        bool isMoving = move.sqrMagnitude > 0.01f;
+        bobTimer = isMoving ? bobTimer + Time.deltaTime * bobFrequency : 0f;
+        float bobY = isMoving ? Mathf.Sin(bobTimer) * bobAmplitude : 0f;
+        float bobX = isMoving ? Mathf.Cos(bobTimer * 0.5f) * bobAmplitude * 0.5f : 0f;
+        previousBobOffset = transform.up * bobY + transform.right * bobX;
+        transform.position += previousBobOffset;
     }
 
     void SetCursorLock(bool locked)

@@ -27,9 +27,16 @@ public class TwistHandle : MonoBehaviour
     // glow on hover). visualToRotate is a pivot with no renderer of its
     // own; the actual mesh is split across its child hub/spokes.
     public Color hoverGlowColor = new Color(1f, 1f, 1f, 1f) * 2f;
+    // Distinct from hover - grabbing produced zero visible change (only a
+    // haptic pulse, which does nothing on keyboard/mouse), so there was no
+    // way to tell "I'm hovering" from "I'm actually gripping this and my
+    // movement is being tracked" apart from the door already starting to
+    // creak open.
+    public Color grabbedGlowColor = new Color(0.3f, 1f, 0.4f, 1f) * 2f;
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
     MaterialPropertyBlock mpb;
     Renderer[] wheelRenderers;
+    bool hovering;
 
     XRSimpleInteractable interactable;
     Quaternion closedRotation;
@@ -73,13 +80,13 @@ public class TwistHandle : MonoBehaviour
         interactable.hoverExited.RemoveListener(OnWheelHoverExit);
     }
 
-    void OnWheelHoverEnter(HoverEnterEventArgs args) => SetGlow(true);
-    void OnWheelHoverExit(HoverExitEventArgs args) => SetGlow(false);
+    void OnWheelHoverEnter(HoverEnterEventArgs args) { hovering = true; if (!tracking) ApplyGlow(hoverGlowColor); }
+    void OnWheelHoverExit(HoverExitEventArgs args) { hovering = false; if (!tracking) ApplyGlow(Color.black); }
 
-    void SetGlow(bool on)
+    void ApplyGlow(Color color)
     {
         if (opened || wheelRenderers == null) return;
-        mpb.SetColor(EmissionColor, on ? hoverGlowColor : Color.black);
+        mpb.SetColor(EmissionColor, color);
         foreach (var r in wheelRenderers) r.SetPropertyBlock(mpb);
     }
 
@@ -89,12 +96,14 @@ public class TwistHandle : MonoBehaviour
         lastHandAngle = GetHandAngle(args.interactorObject.transform.position);
         tracking = true;
         currentInteractor = args.interactorObject;
+        ApplyGlow(grabbedGlowColor);
         HapticUtility.Pulse(currentInteractor, 0.3f, 0.05f);
     }
 
     void OnRelease(SelectExitEventArgs args)
     {
         tracking = false;
+        ApplyGlow(hovering ? hoverGlowColor : Color.black);
     }
 
     void Update()
@@ -120,7 +129,7 @@ public class TwistHandle : MonoBehaviour
         if (accumulatedAngle >= maxAngle * openThreshold)
         {
             opened = true;
-            SetGlow(false);
+            ApplyGlow(Color.black);
             tracking = false;
             HapticUtility.Pulse(currentInteractor, 0.6f, 0.15f);
             onOpened.Invoke();

@@ -13542,6 +13542,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   hoverGlowColor: {r: 2, g: 2, b: 2, a: 2}
+  grabbedGlowColor: {r: 0.6, g: 2, b: 0.8, a: 2}
   notchSize: 30
 --- !u!1 &572414249
 GameObject:
@@ -38305,6 +38306,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   hoverGlowColor: {r: 2, g: 2, b: 2, a: 2}
+  grabbedGlowColor: {r: 0.6, g: 2, b: 0.8, a: 2}
   notchSize: 30
 --- !u!114 &1231887734
 MonoBehaviour:
@@ -43929,6 +43931,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   hoverGlowColor: {r: 2, g: 2, b: 2, a: 2}
+  grabbedGlowColor: {r: 0.6, g: 2, b: 0.8, a: 2}
   notchSize: 30
 --- !u!114 &1504499709
 MonoBehaviour:

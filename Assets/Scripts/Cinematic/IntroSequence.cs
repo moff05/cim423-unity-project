@@ -67,6 +67,14 @@ public class IntroSequence : MonoBehaviour
         if (playerCamera != null)
         {
             playerCamera.enabled = false;
+            // Hand the MainCamera tag to whichever camera is actually
+            // rendering. World-space UI (WorldSpaceUIFollow: dialogue, fade)
+            // positions itself off Camera.main every frame - leaving no
+            // camera tagged MainCamera during the whole cinematic made
+            // Camera.main return null, so that UI froze in stale space
+            // relative to a camera that was no longer being rendered from,
+            // instead of tracking the cinematic camera's flight.
+            playerCamera.tag = "Untagged";
             var playerListener = playerCamera.GetComponent<AudioListener>();
             if (playerListener != null) playerListener.enabled = false;
         }
@@ -78,7 +86,11 @@ public class IntroSequence : MonoBehaviour
         // was last left in the editor, then visibly popped to the real
         // start position the instant that line was dismissed.
         if (cinematicRigRoot != null) cinematicRigRoot.transform.localPosition = departStartPosition;
-        if (cinematicCamera != null) cinematicCamera.enabled = true;
+        if (cinematicCamera != null)
+        {
+            cinematicCamera.enabled = true;
+            cinematicCamera.tag = "MainCamera";
+        }
         if (cinematicLight != null) cinematicLight.enabled = true;
         if (secondaryLight != null) secondaryLight.enabled = true;
         if (interiorRoot != null) interiorRoot.SetActive(false);
@@ -125,7 +137,11 @@ public class IntroSequence : MonoBehaviour
         if (FadeController.Instance != null)
             yield return FadeController.Instance.FadeToBlack(fadeOutTime);
 
-        if (cinematicCamera != null) cinematicCamera.enabled = false;
+        if (cinematicCamera != null)
+        {
+            cinematicCamera.enabled = false;
+            cinematicCamera.tag = "Untagged";
+        }
         if (cinematicLight != null) cinematicLight.enabled = false;
         if (secondaryLight != null) secondaryLight.enabled = false;
         if (cinematicRigRoot != null) cinematicRigRoot.SetActive(false);
@@ -140,6 +156,7 @@ public class IntroSequence : MonoBehaviour
         if (playerCamera != null)
         {
             playerCamera.enabled = true;
+            playerCamera.tag = "MainCamera";
             var playerListener = playerCamera.GetComponent<AudioListener>();
             if (playerListener != null) playerListener.enabled = true;
         }

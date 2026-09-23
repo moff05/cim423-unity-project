@@ -11,7 +11,26 @@ public class WorldSpaceUIFollow : MonoBehaviour
 {
     public float distance = 1.2f;
 
+    // Fade has to keep tracking every frame - it needs to cover whatever
+    // the active camera is looking at even mid-cinematic, while that camera
+    // is flying through space on a completely different transform. A menu
+    // or dialogue panel re-centering on your view every single frame with
+    // zero damping instead reads as the UI chasing your head around -
+    // those should snap into place once when they appear and then hold
+    // still until they're hidden and re-shown.
+    public bool continuousFollow = true;
+
+    void OnEnable()
+    {
+        Snap();
+    }
+
     void LateUpdate()
+    {
+        if (continuousFollow) Snap();
+    }
+
+    void Snap()
     {
         var cam = Camera.main;
         if (cam == null) return;

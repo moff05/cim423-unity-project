@@ -10260,6 +10260,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSpaceUIFollow
   distance: 1.6
+  continuousFollow: 0
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -26529,6 +26530,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSpaceUIFollow
   distance: 1.4
+  continuousFollow: 1
 --- !u!1 &900651087
 GameObject:
   m_ObjectHideFlags: 0
@@ -34734,6 +34736,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSpaceUIFollow
   distance: 0.4
+  continuousFollow: 1
 --- !u!1 &1084189821
 GameObject:
   m_ObjectHideFlags: 0
@@ -46042,6 +46045,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSpaceUIFollow
   distance: 1.6
+  continuousFollow: 0
 --- !u!1 &1580598148
 GameObject:
   m_ObjectHideFlags: 0
@@ -55069,6 +55073,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSpaceUIFollow
   distance: 1.4
+  continuousFollow: 0
 --- !u!1 &2011356598
 GameObject:
   m_ObjectHideFlags: 0

@@ -21,6 +21,16 @@ public class TwistHandle : MonoBehaviour
     [Range(0f, 1f)] public float openThreshold = 0.9f;
     public UnityEvent onOpened = new UnityEvent();
 
+    // The wheel had zero hover feedback - nothing told you it was
+    // interactable until you already knew to grab it, unlike every other
+    // interactable in the scene (doors, terminal, recorder, artifact all
+    // glow on hover). visualToRotate is a pivot with no renderer of its
+    // own; the actual mesh is split across its child hub/spokes.
+    public Color hoverGlowColor = new Color(1f, 1f, 1f, 1f) * 2f;
+    static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
+    MaterialPropertyBlock mpb;
+    Renderer[] wheelRenderers;
+
     XRSimpleInteractable interactable;
     Quaternion closedRotation;
     float accumulatedAngle;
@@ -37,7 +47,12 @@ public class TwistHandle : MonoBehaviour
     void Awake()
     {
         interactable = GetComponent<XRSimpleInteractable>();
-        if (visualToRotate != null) closedRotation = visualToRotate.localRotation;
+        if (visualToRotate != null)
+        {
+            closedRotation = visualToRotate.localRotation;
+            wheelRenderers = visualToRotate.GetComponentsInChildren<Renderer>(true);
+        }
+        mpb = new MaterialPropertyBlock();
     }
 
     void OnEnable()
@@ -45,6 +60,8 @@ public class TwistHandle : MonoBehaviour
         if (interactable == null) return;
         interactable.selectEntered.AddListener(OnGrab);
         interactable.selectExited.AddListener(OnRelease);
+        interactable.hoverEntered.AddListener(OnWheelHoverEnter);
+        interactable.hoverExited.AddListener(OnWheelHoverExit);
     }
 
     void OnDisable()
@@ -52,6 +69,18 @@ public class TwistHandle : MonoBehaviour
         if (interactable == null) return;
         interactable.selectEntered.RemoveListener(OnGrab);
         interactable.selectExited.RemoveListener(OnRelease);
+        interactable.hoverEntered.RemoveListener(OnWheelHoverEnter);
+        interactable.hoverExited.RemoveListener(OnWheelHoverExit);
+    }
+
+    void OnWheelHoverEnter(HoverEnterEventArgs args) => SetGlow(true);
+    void OnWheelHoverExit(HoverExitEventArgs args) => SetGlow(false);
+
+    void SetGlow(bool on)
+    {
+        if (opened || wheelRenderers == null) return;
+        mpb.SetColor(EmissionColor, on ? hoverGlowColor : Color.black);
+        foreach (var r in wheelRenderers) r.SetPropertyBlock(mpb);
     }
 
     void OnGrab(SelectEnterEventArgs args)
@@ -91,6 +120,7 @@ public class TwistHandle : MonoBehaviour
         if (accumulatedAngle >= maxAngle * openThreshold)
         {
             opened = true;
+            SetGlow(false);
             tracking = false;
             HapticUtility.Pulse(currentInteractor, 0.6f, 0.15f);
             onOpened.Invoke();

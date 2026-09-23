@@ -12,6 +12,7 @@ public class PlatformRigSelector : MonoBehaviour
     public GameObject xrRig;
     public Camera xrCamera;
     public Transform xrPlayerRoot;
+    public GameObject xrLocomotion;
     public IntroSequence introSequence;
 
     void Awake()
@@ -35,6 +36,18 @@ public class PlatformRigSelector : MonoBehaviour
             introSequence.playerCamera = xrCamera;
             introSequence.playerController = null;
             introSequence.playerRoot = xrPlayerRoot;
+            introSequence.xrLocomotion = xrLocomotion;
         }
+
+        // The player starts parked essentially on top of the docking bay
+        // spawn point, so the destination station was visible (and
+        // standable) before the player ever pressed Begin - the intro
+        // cinematic's "departure" then visibly teleported them out of a
+        // room they were already in. Hide the station and freeze movement
+        // (no floor to stand on with it hidden) until IntroSequence reveals
+        // both again at the end of the flight.
+        if (introSequence != null && introSequence.interiorRoot != null)
+            introSequence.interiorRoot.SetActive(false);
+        if (xrLocomotion != null) xrLocomotion.SetActive(false);
     }
 }

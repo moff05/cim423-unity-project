@@ -20,20 +20,35 @@ public class WorldSpaceUIFollow : MonoBehaviour
     // still until they're hidden and re-shown.
     public bool continuousFollow = true;
 
-    void OnEnable()
-    {
-        Snap();
-    }
+    // How far (degrees from view center) the panel can drift before it
+    // re-centers, for the non-continuous canvases. A one-shot snap on
+    // enable sounds simpler, but the XR camera's tracked pose isn't
+    // necessarily settled on the frame a panel first appears (the
+    // simulator/headset can take a frame or two to report real head
+    // height rather than a Y=0 rest pose) - a snap that fires on that
+    // frame gets stuck wrong forever with no follow-up correction. A
+    // deadzone re-checked every frame self-heals from that automatically
+    // while still not chasing small head movements.
+    public float repositionAngle = 30f;
 
     void LateUpdate()
     {
-        if (continuousFollow) Snap();
-    }
-
-    void Snap()
-    {
         var cam = Camera.main;
         if (cam == null) return;
+
+        if (continuousFollow)
+        {
+            Snap(cam);
+            return;
+        }
+
+        Vector3 toPanel = transform.position - cam.transform.position;
+        if (toPanel.sqrMagnitude < 0.0001f || Vector3.Angle(cam.transform.forward, toPanel) > repositionAngle)
+            Snap(cam);
+    }
+
+    void Snap(Camera cam)
+    {
         transform.SetPositionAndRotation(
             cam.transform.position + cam.transform.forward * distance,
             cam.transform.rotation);

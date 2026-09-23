@@ -18,7 +18,14 @@ public class IntroSequence : MonoBehaviour
     // The interior is always-active with no layer/culling split from the
     // cinematic camera, so it bleeds into the cinematic's early frames
     // (it sits right where the rig launches from). Hide it for the flight.
+    // PlatformRigSelector also hides it at boot, before Begin is ever
+    // pressed - the player shouldn't be able to see (or stand in) the
+    // destination station before they've arrived.
     public GameObject interiorRoot;
+    // Disabled by PlatformRigSelector at boot alongside interiorRoot (no
+    // floor to stand on while the station is hidden) and restored here at
+    // the same moment interiorRoot comes back.
+    public GameObject xrLocomotion;
     public float fadeOutTime = 1f;
     public float fadeInTime = 1.5f;
 
@@ -146,6 +153,7 @@ public class IntroSequence : MonoBehaviour
         if (secondaryLight != null) secondaryLight.enabled = false;
         if (cinematicRigRoot != null) cinematicRigRoot.SetActive(false);
         if (interiorRoot != null) interiorRoot.SetActive(true);
+        if (xrLocomotion != null) xrLocomotion.SetActive(true);
 
         if (playerRoot != null && dockingBaySpawnPoint != null)
         {

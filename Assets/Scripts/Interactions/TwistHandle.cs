@@ -45,7 +45,7 @@ public class TwistHandle : MonoBehaviour
     // runtime so no prefab/scene wiring is needed, billboarded toward
     // whichever camera is active so it's readable regardless of approach
     // angle.
-    public Vector3 hintOffset = new Vector3(0f, 0.3f, 0f);
+    public float hintHeight = 0.45f;
     public float hintScale = 0.0025f;
     TextMeshPro hintText;
 
@@ -76,15 +76,21 @@ public class TwistHandle : MonoBehaviour
 
     void CreateHint()
     {
+        // Deliberately NOT parented under this transform: AirlockDoorDisc's
+        // local axes are badly skewed (its "forward" points straight down,
+        // not through the door) from the crushed parent scale mentioned
+        // above, so a local offset landed the hint overlapping the wheel's
+        // own hover reticle instead of clear of it. Positioned in world
+        // space every frame instead - see LateUpdate.
         var go = new GameObject("InteractionHint");
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = hintOffset;
         go.transform.localScale = Vector3.one * hintScale;
         hintText = go.AddComponent<TextMeshPro>();
         hintText.alignment = TextAlignmentOptions.Center;
         hintText.color = new Color(0.6f, 0.95f, 1f);
         hintText.fontSize = 36f;
         hintText.enableWordWrapping = false;
+        hintText.outlineWidth = 0.2f;
+        hintText.outlineColor = Color.black;
         go.SetActive(false);
     }
 
@@ -105,7 +111,13 @@ public class TwistHandle : MonoBehaviour
         if (hintText == null || !hintText.gameObject.activeSelf) return;
         var cam = Camera.main;
         if (cam == null) return;
+        hintText.transform.position = transform.position + Vector3.up * hintHeight;
         hintText.transform.rotation = Quaternion.LookRotation(hintText.transform.position - cam.transform.position, Vector3.up);
+    }
+
+    void OnDestroy()
+    {
+        if (hintText != null) Destroy(hintText.gameObject);
     }
 
     void OnEnable()

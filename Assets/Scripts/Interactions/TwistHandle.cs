@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -38,6 +39,16 @@ public class TwistHandle : MonoBehaviour
     Renderer[] wheelRenderers;
     bool hovering;
 
+    // The glow says "this is interactable," not "here is what to do with
+    // it" - a grab-and-sweep-in-a-circle gesture isn't self-explanatory
+    // the way a button press is. Floating world-space text, built at
+    // runtime so no prefab/scene wiring is needed, billboarded toward
+    // whichever camera is active so it's readable regardless of approach
+    // angle.
+    public Vector3 hintOffset = new Vector3(0f, 0.3f, 0f);
+    public float hintScale = 0.0025f;
+    TextMeshPro hintText;
+
     XRSimpleInteractable interactable;
     Quaternion closedRotation;
     float accumulatedAngle;
@@ -60,6 +71,41 @@ public class TwistHandle : MonoBehaviour
             wheelRenderers = visualToRotate.GetComponentsInChildren<Renderer>(true);
         }
         mpb = new MaterialPropertyBlock();
+        CreateHint();
+    }
+
+    void CreateHint()
+    {
+        var go = new GameObject("InteractionHint");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = hintOffset;
+        go.transform.localScale = Vector3.one * hintScale;
+        hintText = go.AddComponent<TextMeshPro>();
+        hintText.alignment = TextAlignmentOptions.Center;
+        hintText.color = new Color(0.6f, 0.95f, 1f);
+        hintText.fontSize = 36f;
+        hintText.enableWordWrapping = false;
+        go.SetActive(false);
+    }
+
+    void ShowHint(string text)
+    {
+        if (hintText == null) return;
+        hintText.text = text;
+        hintText.gameObject.SetActive(true);
+    }
+
+    void HideHint()
+    {
+        if (hintText != null) hintText.gameObject.SetActive(false);
+    }
+
+    void LateUpdate()
+    {
+        if (hintText == null || !hintText.gameObject.activeSelf) return;
+        var cam = Camera.main;
+        if (cam == null) return;
+        hintText.transform.rotation = Quaternion.LookRotation(hintText.transform.position - cam.transform.position, Vector3.up);
     }
 
     void OnEnable()
@@ -80,8 +126,21 @@ public class TwistHandle : MonoBehaviour
         interactable.hoverExited.RemoveListener(OnWheelHoverExit);
     }
 
-    void OnWheelHoverEnter(HoverEnterEventArgs args) { hovering = true; if (!tracking) ApplyGlow(hoverGlowColor); }
-    void OnWheelHoverExit(HoverExitEventArgs args) { hovering = false; if (!tracking) ApplyGlow(Color.black); }
+    void OnWheelHoverEnter(HoverEnterEventArgs args)
+    {
+        hovering = true;
+        if (tracking || opened) return;
+        ApplyGlow(hoverGlowColor);
+        ShowHint("GRAB, THEN MOVE IN A CIRCLE");
+    }
+
+    void OnWheelHoverExit(HoverExitEventArgs args)
+    {
+        hovering = false;
+        if (tracking) return;
+        ApplyGlow(Color.black);
+        HideHint();
+    }
 
     void ApplyGlow(Color color)
     {
@@ -97,13 +156,17 @@ public class TwistHandle : MonoBehaviour
         tracking = true;
         currentInteractor = args.interactorObject;
         ApplyGlow(grabbedGlowColor);
+        ShowHint("KEEP MOVING IN A CIRCLE");
         HapticUtility.Pulse(currentInteractor, 0.3f, 0.05f);
     }
 
     void OnRelease(SelectExitEventArgs args)
     {
         tracking = false;
+        if (opened) return;
         ApplyGlow(hovering ? hoverGlowColor : Color.black);
+        if (hovering) ShowHint("GRAB, THEN MOVE IN A CIRCLE");
+        else HideHint();
     }
 
     void Update()
@@ -120,6 +183,13 @@ public class TwistHandle : MonoBehaviour
         if (visualToRotate != null)
             visualToRotate.localRotation = closedRotation * Quaternion.AngleAxis(accumulatedAngle, localSpinAxis);
 
+        // Live percentage so a slow/fiddly sweep still visibly counts for
+        // something each time it ticks up - without this, a partial or
+        // hesitant turn looks and feels completely inert until the moment
+        // it crosses the threshold.
+        int percent = Mathf.RoundToInt(Mathf.Clamp01(accumulatedAngle / (maxAngle * openThreshold)) * 100f);
+        ShowHint("KEEP MOVING IN A CIRCLE (" + percent + "%)");
+
         if (accumulatedAngle - lastNotch >= notchSize)
         {
             lastNotch = accumulatedAngle;
@@ -130,6 +200,7 @@ public class TwistHandle : MonoBehaviour
         {
             opened = true;
             ApplyGlow(Color.black);
+            HideHint();
             tracking = false;
             HapticUtility.Pulse(currentInteractor, 0.6f, 0.15f);
             onOpened.Invoke();

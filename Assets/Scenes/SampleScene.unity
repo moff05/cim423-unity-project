@@ -51734,12 +51734,12 @@ MonoBehaviour:
   ambientSource: {fileID: 402515765}
   breathingSource: {fileID: 673607824}
   bassRumbleSource: {fileID: 881030027}
-  ambientBaseVolume: 0.1
-  ambientMaxVolume: 0.32
-  breathingBaseVolume: 0.12
-  breathingMaxVolume: 0.42
-  bassRumbleBaseVolume: 0.25
-  bassRumbleMaxVolume: 0.55
+  ambientBaseVolume: 0.08
+  ambientMaxVolume: 0.22
+  breathingBaseVolume: 0.18
+  breathingMaxVolume: 0.55
+  bassRumbleBaseVolume: 0.15
+  bassRumbleMaxVolume: 0.35
   volumeLerpSpeed: 1.2
 --- !u!1 &1822338356
 GameObject:

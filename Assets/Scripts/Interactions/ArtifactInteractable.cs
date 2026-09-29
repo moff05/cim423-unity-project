@@ -49,12 +49,15 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // Sealed shut for the duration so there's nothing visible through the
     // doorway when the player turns around.
     public DoorSwing labDoor;
-    public float floatDuration = 2f;
+    // Longer and slower per feedback after playtesting - 2s at 40deg/s felt
+    // rushed and wasn't a clean read as "spinning" at all (barely a quarter
+    // turn in the whole beat).
+    public float floatDuration = 5f;
     // Degrees/second the skybox rotates during the float, so the stars
     // visibly wheel past instead of just sitting there - this is what
     // sells "spinning," not any change to the player's own transform
     // (deliberately not touched - safe regardless of desktop or XR rig).
-    public float skyboxSpinSpeed = 40f;
+    public float skyboxSpinSpeed = 15f;
 
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
     static readonly int SkyboxRotation = Shader.PropertyToID("_Rotation");
@@ -144,11 +147,19 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // The room shakes and the lights flicker, building for shakeDuration.
         yield return ShakeAndFlickerRoutine(shakeDuration);
 
-        // Everything disappears - hide the room, seal the door, and float
-        // in open space with the stars spinning for floatDuration.
+        // Everything disappears - hide the room, seal the door, cut every
+        // sound (ambience/breathing/bass, plus anything still tailing off
+        // from the shake), and float in silent open space with the stars
+        // spinning for floatDuration.
         SetRoomVisible(false);
         if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
+        if (screechAudio != null) screechAudio.Stop();
+        if (glitchAudioSource != null) glitchAudioSource.Stop();
+        AmbienceManager.Instance?.SetMuted(true);
+
         yield return SpinSkyboxRoutine(floatDuration);
+
+        AmbienceManager.Instance?.SetMuted(false);
 
         // Back to normal.
         SetRoomVisible(true);

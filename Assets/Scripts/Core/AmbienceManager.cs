@@ -5,23 +5,44 @@ using UnityEngine;
 // station feels more oppressive the deeper the player goes.
 public class AmbienceManager : MonoBehaviour
 {
+    public static AmbienceManager Instance { get; private set; }
+
     public AudioSource ambientSource;
     public AudioSource breathingSource;
     // Low-frequency sub-bass drone - meant to be felt more than heard, so it
     // sits under the audible drone/breathing layers the whole game long.
     public AudioSource bassRumbleSource;
-    public float ambientBaseVolume = 0.1f;
-    public float ambientMaxVolume = 0.32f;
-    // Widened 0.07->0.26 to 0.12->0.42 - the old range was getting lost
-    // under the bass rumble/ambient drone, so the escalation nobody could
-    // hear wasn't doing the job it was built for.
-    public float breathingBaseVolume = 0.12f;
-    public float breathingMaxVolume = 0.42f;
-    public float bassRumbleBaseVolume = 0.25f;
-    public float bassRumbleMaxVolume = 0.55f;
+    // Rebalanced - breathing was still inaudible even after the first widen,
+    // because bass rumble/drone sat at or above it the whole time. Breathing
+    // is now the loudest layer by the end; the other two pulled back so
+    // they support it instead of masking it.
+    public float ambientBaseVolume = 0.08f;
+    public float ambientMaxVolume = 0.22f;
+    public float breathingBaseVolume = 0.18f;
+    public float breathingMaxVolume = 0.55f;
+    public float bassRumbleBaseVolume = 0.15f;
+    public float bassRumbleMaxVolume = 0.35f;
     public float volumeLerpSpeed = 1.2f;
 
     bool started;
+    bool muted;
+
+    void Awake()
+    {
+        Instance = this;
+    }
+
+    // Pauses (not stops) all three loops so they resume exactly where they
+    // left off, at whatever volume the escalation curve has already reached,
+    // instead of restarting or popping back in at the wrong loudness.
+    public void SetMuted(bool value)
+    {
+        if (muted == value) return;
+        muted = value;
+        if (ambientSource != null) { if (value) ambientSource.Pause(); else ambientSource.UnPause(); }
+        if (breathingSource != null) { if (value) breathingSource.Pause(); else breathingSource.UnPause(); }
+        if (bassRumbleSource != null) { if (value) bassRumbleSource.Pause(); else bassRumbleSource.UnPause(); }
+    }
 
     void Update()
     {

@@ -66,15 +66,32 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         new Color(1f, 1f, 1f), new Color(0.25f, 0.3f, 0.35f)
     };
 
+    // How close (meters) the jump-scare silhouette gets to the player's
+    // face, and how far into the hold window (0-1) it fires - late enough
+    // that the screech/lights have already built tension, early enough to
+    // still have time to react and vanish before the reset.
+    public float scareDistance = 0.55f;
+    [Range(0f, 1f)] public float scareTriggerFraction = 0.6f;
+    public float scareBlackoutIn = 0.03f;
+    public float scareBlackoutHold = 0.1f;
+    public float scareBlackoutOut = 0.2f;
+
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
     MaterialPropertyBlock mpb;
     bool triggered;
     Color[] glitchLightBaseColors;
     float[] glitchLightBaseIntensities;
+    Vector3[] silhouetteBaseScale;
 
     void Awake()
     {
         mpb = new MaterialPropertyBlock();
+        if (crewSilhouettes != null)
+        {
+            silhouetteBaseScale = new Vector3[crewSilhouettes.Length];
+            for (int i = 0; i < crewSilhouettes.Length; i++)
+                if (crewSilhouettes[i] != null) silhouetteBaseScale[i] = crewSilhouettes[i].transform.localScale;
+        }
         SetSilhouettesActive(false);
         // Cached once, here, rather than every time the glitch turns on -
         // re-caching on each toggle risks capturing the alien skybox
@@ -149,6 +166,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         SetEnvironmentGlitch(true);
         if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
         StartCoroutine(FlySilhouettesRoutine(holdDuration));
+        StartCoroutine(JumpScareRoutine(holdDuration));
 
         yield return GlitchLightsRoutine(holdDuration);
 
@@ -243,9 +261,16 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
                     if (crewSilhouettes[i] == null) continue;
                     var tr = crewSilhouettes[i].transform;
                     tr.position = basePos[i] + Random.insideUnitSphere * flyRadius;
-                    // Snap to a random facing too - a spin is smooth motion,
-                    // a sudden wrong-way stare is not.
-                    tr.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                    // Face the player instead of a random direction - being
+                    // stared at by something that just snapped into a new
+                    // spot is unsettling; a figure that snaps but keeps
+                    // looking away is just scenery.
+                    var cam = Camera.main;
+                    if (cam != null)
+                    {
+                        Vector3 toCam = cam.transform.position - tr.position;
+                        if (toCam.sqrMagnitude > 0.0001f) tr.rotation = Quaternion.LookRotation(toCam);
+                    }
                     if (Random.value < flickerChancePerSnap)
                         StartCoroutine(FlickerOnce(crewSilhouettes[i]));
                 }
@@ -258,6 +283,49 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             if (crewSilhouettes[i] == null) continue;
             crewSilhouettes[i].transform.position = basePos[i];
         }
+    }
+
+    // The whole reveal was a light show the player watches from a safe
+    // distance - nothing ever actually threatens them. This is the one
+    // beat that does: one silhouette snaps directly into the player's
+    // personal space, facing them, timed with a loud stinger and a hard
+    // cut to black (not a fade - a fade reads as "the game is doing a
+    // transition"; an instant cut reads as "you flinched").
+    IEnumerator JumpScareRoutine(float holdDuration)
+    {
+        yield return new WaitForSeconds(holdDuration * scareTriggerFraction);
+
+        if (crewSilhouettes == null || crewSilhouettes.Length == 0) yield break;
+        var cam = Camera.main;
+        if (cam == null) yield break;
+
+        var chosen = crewSilhouettes[Random.Range(0, crewSilhouettes.Length)];
+        if (chosen == null) yield break;
+
+        var camT = cam.transform;
+        Vector3 rightInFront = camT.position + camT.forward * scareDistance;
+        chosen.transform.SetPositionAndRotation(rightInFront, Quaternion.LookRotation(camT.position - rightInFront));
+        chosen.SetActive(true);
+
+        if (glitchAudioSource != null && glitchClips != null && glitchClips.Length > 0)
+        {
+            var clip = glitchClips[Random.Range(0, glitchClips.Length)];
+            if (clip != null) glitchAudioSource.PlayOneShot(clip, 1f);
+        }
+
+        if (FadeController.Instance != null)
+        {
+            yield return FadeController.Instance.FadeToBlack(scareBlackoutIn);
+            yield return new WaitForSeconds(scareBlackoutHold);
+            yield return FadeController.Instance.FadeFromBlack(scareBlackoutOut);
+        }
+
+        // Vanish it the instant the lights are back up, before the player
+        // has a real second to just look at it and process "oh, it's just
+        // a capsule" - the flinch is the scare, not the shape.
+        chosen.SetActive(false);
+        yield return new WaitForSeconds(0.08f);
+        if (chosen != null) chosen.SetActive(true);
     }
 
     IEnumerator FlickerOnce(GameObject go)
@@ -295,9 +363,28 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     void SetSilhouettesActive(bool active)
     {
         if (crewSilhouettes == null) return;
-        foreach (var go in crewSilhouettes)
+        for (int i = 0; i < crewSilhouettes.Length; i++)
         {
-            if (go != null) go.SetActive(active);
+            var go = crewSilhouettes[i];
+            if (go == null) continue;
+            go.SetActive(active);
+
+            // Stretched too tall and too thin, per-instance and randomized
+            // each reveal - uniform capsule-person proportions read as a
+            // mannequin; proportions that are subtly, inconsistently
+            // "wrong" read as something that used to be a person.
+            if (active && silhouetteBaseScale != null && i < silhouetteBaseScale.Length)
+            {
+                var b = silhouetteBaseScale[i];
+                go.transform.localScale = new Vector3(
+                    b.x * Random.Range(0.7f, 1f),
+                    b.y * Random.Range(1.2f, 1.6f),
+                    b.z * Random.Range(0.7f, 1f));
+            }
+            else if (!active && silhouetteBaseScale != null && i < silhouetteBaseScale.Length)
+            {
+                go.transform.localScale = silhouetteBaseScale[i];
+            }
         }
     }
 }

@@ -11,6 +11,9 @@ public class WorldSpaceUIFollow : MonoBehaviour
 {
     public float distance = 1.2f;
 
+    Canvas canvas;
+    void Awake() { canvas = GetComponent<Canvas>(); }
+
     // Fade has to keep tracking every frame - it needs to cover whatever
     // the active camera is looking at even mid-cinematic, while that camera
     // is flying through space on a completely different transform. A menu
@@ -35,6 +38,14 @@ public class WorldSpaceUIFollow : MonoBehaviour
     {
         var cam = Camera.main;
         if (cam == null) return;
+
+        // Keeps ray/click hit-testing pointed at whichever camera is
+        // actually active - was previously a fixed Inspector reference to
+        // the XR camera specifically, which meant a GraphicRaycaster (or
+        // the XR TrackedDeviceGraphicRaycaster) would raycast through a
+        // stale or inactive camera the instant the active rig changed.
+        if (canvas != null && canvas.worldCamera != cam)
+            canvas.worldCamera = cam;
 
         if (continuousFollow)
         {

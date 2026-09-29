@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 // Chooses which player rig actually drives the game: the desktop mouse/
 // keyboard FreeLookWalker rig, or the tracked XR Origin (head + Quest 3
@@ -33,6 +34,21 @@ public class PlatformRigSelector : MonoBehaviour
 
         if (desktopRig != null) desktopRig.SetActive(!useXR);
         if (xrRig != null) xrRig.SetActive(useXR);
+
+        // Every UI canvas (Start/End/InfoPanel) only has a
+        // TrackedDeviceGraphicRaycaster, which exclusively responds to an
+        // XR controller's ray - a desktop mouse click on "Begin" or the
+        // call-sign field silently hits nothing. Add a real GraphicRaycaster
+        // alongside it in desktop mode so the same canvases work with the
+        // mouse via InputSystemUIInputModule (already on the EventSystem).
+        if (!useXR)
+        {
+            foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (canvas.GetComponent<GraphicRaycaster>() == null)
+                    canvas.gameObject.AddComponent<GraphicRaycaster>();
+            }
+        }
 
         // Only the active rig's camera should carry the MainCamera tag -
         // Camera.main, and anything built on it (including editor tooling),

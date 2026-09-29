@@ -3,18 +3,21 @@ using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 // Attach to Artifact. Activating it shifts its material from dim blue to pulsing
-// white, reveals the five crew silhouettes for a few seconds, then resets and
-// hands off to the End Screen.
+// white, then: the room shakes and the lights flicker, everything disappears
+// and the player is floating in open space with the stars wheeling past, then
+// it all snaps back to normal before handing off to the End Screen. No crew
+// silhouettes - an earlier version had them, cut per direct feedback after
+// playtesting ("not scary, loses all the cool vibes... no silhouettes no
+// nothing else").
 public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 {
     public const string StepId = "artifact";
 
     public Renderer artifactRenderer;
-    public GameObject[] crewSilhouettes;
     public AudioSource screechAudio;
     // Short, harsh distortion/glitch stingers fired at random through the
-    // reveal - layered under the screech to sell "reality is breaking",
-    // not just "the light is flickering".
+    // shake - layered under the screech to sell "reality is breaking", not
+    // just "the light is flickering".
     public AudioSource glitchAudioSource;
     public AudioClip[] glitchClips;
     [Range(0f, 1f)] public float glitchClipChancePerTick = 0.35f;
@@ -22,82 +25,57 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     public Color dimBlue = new Color(0.1f, 0.3f, 0.6f);
     public Color brightWhite = Color.white;
     public float revealDuration = 1.1f;
-    public float holdDuration = 1.8f;
     public float resetDuration = 0.9f;
     public float idlePulseSpeed = 1.2f;
 
-    // Room lights that glitch through vivid colors while the silhouettes are
-    // revealed, synced with the screech - sells the "walls cut out" moment
-    // as something wrong with reality, not just the artifact glowing.
+    // Room lights flicker (near-off to a bright spike) rather than cycling
+    // color - reads as a physical power failure, which fits "the room
+    // shakes and the lights flicker" more literally than a rainbow strobe.
     public Light[] glitchLights;
     public float glitchInterval = 0.06f;
+    public float shakeDuration = 1.6f;
+    // How hard the room shakes by the end of the shake window (ramps up
+    // from 0, not constant, so it reads as building rather than just on).
+    public float maxShakeAmplitude = 0.04f;
 
-    // "The walls cut out": hide the room's walls and the pedestal, swap in an
-    // alien skybox so it's visible through the gaps, for the duration of the
-    // reveal - then everything snaps back.
+    // "Everything disappears": hide the room and the pedestal so the
+    // scene's real default skybox (a starfield, already what
+    // RenderSettings.skybox is outside this effect) becomes visible in
+    // every direction - the player is standing in the same spot the whole
+    // time, it just reads as floating in open space once there's no room
+    // left to see. No separate "space" skybox material needed for this.
     public GameObject[] wallsToHide;
     public GameObject pedestal;
-    public Material alienSkyboxMaterial;
-    // Sealed shut for the duration of the reveal so there's nothing visible
-    // through the doorway when the player turns around - the alien skybox
-    // is the only thing visible in every direction, not just where the
-    // walls used to be.
+    // Sealed shut for the duration so there's nothing visible through the
+    // doorway when the player turns around.
     public DoorSwing labDoor;
-    // A large sphere enclosing the whole room, textured with the alien
-    // pano and rendered back-face-in so it's visible from inside - this is
-    // the real guarantee that literally nothing (doors, distant planets,
-    // other rooms) is visible in any direction during the reveal, instead
-    // of relying on hiding every individual object that might be in view.
-    public GameObject glitchDome;
-    Material originalSkybox;
-
-    // Silhouettes snap-teleport around their starting spot instead of
-    // standing still (or smoothly flying, which read as balletic) - see
-    // FlySilhouettesRoutine below for the jump-cut + flicker behavior.
-    public float flyRadius = 1.6f;
-    public float flyRetargetInterval = 0.35f;
-    // Restrained, sickly palette instead of a full neon rainbow - deep
-    // blood red, bile green, a near-black violet, and harsh white strobes.
-    // The old set (bright cyan/pink/purple cycling fast) read as a rave
-    // filter, not dread; horror lighting stays narrow and wrong-feeling.
-    static readonly Color[] GlitchColors =
-    {
-        new Color(0.55f, 0.04f, 0.04f), new Color(0.4f, 0.55f, 0.12f), new Color(0.12f, 0f, 0.18f),
-        new Color(1f, 1f, 1f), new Color(0.25f, 0.3f, 0.35f)
-    };
-
-    // How close (meters) the jump-scare silhouette gets to the player's
-    // face, and how far into the hold window (0-1) it fires - late enough
-    // that the screech/lights have already built tension, early enough to
-    // still have time to react and vanish before the reset.
-    public float scareDistance = 0.55f;
-    [Range(0f, 1f)] public float scareTriggerFraction = 0.6f;
-    public float scareBlackoutIn = 0.03f;
-    public float scareBlackoutHold = 0.1f;
-    public float scareBlackoutOut = 0.2f;
+    public float floatDuration = 2f;
+    // Degrees/second the skybox rotates during the float, so the stars
+    // visibly wheel past instead of just sitting there - this is what
+    // sells "spinning," not any change to the player's own transform
+    // (deliberately not touched - safe regardless of desktop or XR rig).
+    public float skyboxSpinSpeed = 40f;
 
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
+    static readonly int SkyboxRotation = Shader.PropertyToID("_Rotation");
     MaterialPropertyBlock mpb;
     bool triggered;
     Color[] glitchLightBaseColors;
     float[] glitchLightBaseIntensities;
-    Vector3[] silhouetteBaseScale;
+    Vector3[] wallBasePositions;
+    Vector3 pedestalBasePosition;
 
     void Awake()
     {
         mpb = new MaterialPropertyBlock();
-        if (crewSilhouettes != null)
+
+        if (wallsToHide != null)
         {
-            silhouetteBaseScale = new Vector3[crewSilhouettes.Length];
-            for (int i = 0; i < crewSilhouettes.Length; i++)
-                if (crewSilhouettes[i] != null) silhouetteBaseScale[i] = crewSilhouettes[i].transform.localScale;
+            wallBasePositions = new Vector3[wallsToHide.Length];
+            for (int i = 0; i < wallsToHide.Length; i++)
+                if (wallsToHide[i] != null) wallBasePositions[i] = wallsToHide[i].transform.localPosition;
         }
-        SetSilhouettesActive(false);
-        // Cached once, here, rather than every time the glitch turns on -
-        // re-caching on each toggle risks capturing the alien skybox
-        // itself as "original" if the glitch is ever triggered twice
-        // without a clean off in between.
-        originalSkybox = RenderSettings.skybox;
+        if (pedestal != null) pedestalBasePosition = pedestal.transform.localPosition;
 
         if (glitchLights != null)
         {
@@ -161,17 +139,19 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             yield return null;
         }
 
-        SetSilhouettesActive(true);
         if (screechAudio != null && screechAudio.clip != null) screechAudio.Play();
-        SetEnvironmentGlitch(true);
+
+        // The room shakes and the lights flicker, building for shakeDuration.
+        yield return ShakeAndFlickerRoutine(shakeDuration);
+
+        // Everything disappears - hide the room, seal the door, and float
+        // in open space with the stars spinning for floatDuration.
+        SetRoomVisible(false);
         if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
-        StartCoroutine(FlySilhouettesRoutine(holdDuration));
-        StartCoroutine(JumpScareRoutine(holdDuration));
+        yield return SpinSkyboxRoutine(floatDuration);
 
-        yield return GlitchLightsRoutine(holdDuration);
-
-        SetEnvironmentGlitch(false);
-        SetSilhouettesActive(false);
+        // Back to normal.
+        SetRoomVisible(true);
         if (labDoor != null) StartCoroutine(labDoor.SwingOpen());
 
         t = 0f;
@@ -194,163 +174,93 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         endScreen?.Show();
     }
 
-    IEnumerator GlitchLightsRoutine(float duration)
+    IEnumerator ShakeAndFlickerRoutine(float duration)
     {
-        float t = 0f;
-        while (t < duration)
+        float elapsed = 0f;
+        float flickerTimer = 0f;
+        while (elapsed < duration)
         {
-            t += glitchInterval;
-            if (glitchLights != null)
+            elapsed += Time.deltaTime;
+            flickerTimer += Time.deltaTime;
+
+            // Ramps 0 -> maxShakeAmplitude so it reads as building, not a
+            // flat constant shake from the first frame.
+            float amplitude = maxShakeAmplitude * (elapsed / duration);
+            if (wallsToHide != null)
             {
-                foreach (var l in glitchLights)
+                for (int i = 0; i < wallsToHide.Length; i++)
                 {
-                    if (l == null) continue;
-                    l.color = GlitchColors[Random.Range(0, GlitchColors.Length)];
-                    l.intensity = Random.Range(1.5f, 4f);
+                    if (wallsToHide[i] == null) continue;
+                    wallsToHide[i].transform.localPosition = wallBasePositions[i] + Random.insideUnitSphere * amplitude;
                 }
             }
-            if (glitchAudioSource != null && glitchClips != null && glitchClips.Length > 0
-                && Random.value < glitchClipChancePerTick)
+            if (pedestal != null)
+                pedestal.transform.localPosition = pedestalBasePosition + Random.insideUnitSphere * amplitude;
+
+            if (flickerTimer >= glitchInterval)
             {
-                var clip = glitchClips[Random.Range(0, glitchClips.Length)];
-                if (clip != null) glitchAudioSource.PlayOneShot(clip, Random.Range(0.5f, 1f));
+                flickerTimer = 0f;
+                if (glitchLights != null)
+                {
+                    for (int i = 0; i < glitchLights.Length; i++)
+                    {
+                        if (glitchLights[i] == null) continue;
+                        // Mostly near-off with occasional bright spikes -
+                        // a power failure, not a light show.
+                        bool spike = Random.value < 0.3f;
+                        glitchLights[i].intensity = spike
+                            ? glitchLightBaseIntensities[i] * Random.Range(1.5f, 2.2f)
+                            : glitchLightBaseIntensities[i] * Random.Range(0f, 0.15f);
+                    }
+                }
+                if (glitchAudioSource != null && glitchClips != null && glitchClips.Length > 0
+                    && Random.value < glitchClipChancePerTick)
+                {
+                    var clip = glitchClips[Random.Range(0, glitchClips.Length)];
+                    if (clip != null) glitchAudioSource.PlayOneShot(clip, Random.Range(0.5f, 1f));
+                }
             }
-            yield return new WaitForSeconds(glitchInterval);
+            yield return null;
         }
 
+        // Restore exact original positions/light state - a ramping random
+        // jitter never lands back on zero on its own.
+        if (wallsToHide != null)
+            for (int i = 0; i < wallsToHide.Length; i++)
+                if (wallsToHide[i] != null) wallsToHide[i].transform.localPosition = wallBasePositions[i];
+        if (pedestal != null) pedestal.transform.localPosition = pedestalBasePosition;
         if (glitchLights != null)
-        {
             for (int i = 0; i < glitchLights.Length; i++)
             {
                 if (glitchLights[i] == null) continue;
                 glitchLights[i].color = glitchLightBaseColors[i];
                 glitchLights[i].intensity = glitchLightBaseIntensities[i];
             }
-        }
     }
 
-    // Snaps between positions instead of smoothly flying there - a graceful
-    // float-and-spin read as balletic/whimsical, not wrong. A jump-cut
-    // teleport every retarget tick (with a couple of quick visibility
-    // flickers around each snap) reads as broken reality instead.
-    public float flickerChancePerSnap = 0.6f;
-    public float flickerBlinkDuration = 0.04f;
-
-    IEnumerator FlySilhouettesRoutine(float duration)
+    IEnumerator SpinSkyboxRoutine(float duration)
     {
-        if (crewSilhouettes == null || crewSilhouettes.Length == 0) yield break;
+        var sky = RenderSettings.skybox;
+        bool hasRotation = sky != null && sky.HasProperty(SkyboxRotation);
+        float startRotation = hasRotation ? sky.GetFloat(SkyboxRotation) : 0f;
 
-        var basePos = new Vector3[crewSilhouettes.Length];
-        for (int i = 0; i < crewSilhouettes.Length; i++)
-        {
-            if (crewSilhouettes[i] == null) continue;
-            basePos[i] = crewSilhouettes[i].transform.position;
-        }
-
-        float retargetTimer = 0f;
         float t = 0f;
         while (t < duration)
         {
             t += Time.deltaTime;
-            retargetTimer += Time.deltaTime;
-            if (retargetTimer >= flyRetargetInterval)
-            {
-                retargetTimer = 0f;
-                for (int i = 0; i < crewSilhouettes.Length; i++)
-                {
-                    if (crewSilhouettes[i] == null) continue;
-                    var tr = crewSilhouettes[i].transform;
-                    tr.position = basePos[i] + Random.insideUnitSphere * flyRadius;
-                    // Face the player instead of a random direction - being
-                    // stared at by something that just snapped into a new
-                    // spot is unsettling; a figure that snaps but keeps
-                    // looking away is just scenery.
-                    var cam = Camera.main;
-                    if (cam != null)
-                    {
-                        Vector3 toCam = cam.transform.position - tr.position;
-                        if (toCam.sqrMagnitude > 0.0001f) tr.rotation = Quaternion.LookRotation(toCam);
-                    }
-                    if (Random.value < flickerChancePerSnap)
-                        StartCoroutine(FlickerOnce(crewSilhouettes[i]));
-                }
-            }
+            if (hasRotation)
+                sky.SetFloat(SkyboxRotation, (startRotation + skyboxSpinSpeed * t) % 360f);
             yield return null;
         }
 
-        for (int i = 0; i < crewSilhouettes.Length; i++)
-        {
-            if (crewSilhouettes[i] == null) continue;
-            crewSilhouettes[i].transform.position = basePos[i];
-        }
+        if (hasRotation) sky.SetFloat(SkyboxRotation, startRotation);
     }
 
-    // The whole reveal was a light show the player watches from a safe
-    // distance - nothing ever actually threatens them. This is the one
-    // beat that does: one silhouette snaps directly into the player's
-    // personal space, facing them, timed with a loud stinger and a hard
-    // cut to black (not a fade - a fade reads as "the game is doing a
-    // transition"; an instant cut reads as "you flinched").
-    IEnumerator JumpScareRoutine(float holdDuration)
+    void SetRoomVisible(bool visible)
     {
-        yield return new WaitForSeconds(holdDuration * scareTriggerFraction);
-
-        if (crewSilhouettes == null || crewSilhouettes.Length == 0) yield break;
-        var cam = Camera.main;
-        if (cam == null) yield break;
-
-        var chosen = crewSilhouettes[Random.Range(0, crewSilhouettes.Length)];
-        if (chosen == null) yield break;
-
-        var camT = cam.transform;
-        Vector3 rightInFront = camT.position + camT.forward * scareDistance;
-        chosen.transform.SetPositionAndRotation(rightInFront, Quaternion.LookRotation(camT.position - rightInFront));
-        chosen.SetActive(true);
-
-        if (glitchAudioSource != null && glitchClips != null && glitchClips.Length > 0)
-        {
-            var clip = glitchClips[Random.Range(0, glitchClips.Length)];
-            if (clip != null) glitchAudioSource.PlayOneShot(clip, 1f);
-        }
-
-        if (FadeController.Instance != null)
-        {
-            yield return FadeController.Instance.FadeToBlack(scareBlackoutIn);
-            yield return new WaitForSeconds(scareBlackoutHold);
-            yield return FadeController.Instance.FadeFromBlack(scareBlackoutOut);
-        }
-
-        // Vanish it the instant the lights are back up, before the player
-        // has a real second to just look at it and process "oh, it's just
-        // a capsule" - the flinch is the scare, not the shape.
-        chosen.SetActive(false);
-        yield return new WaitForSeconds(0.08f);
-        if (chosen != null) chosen.SetActive(true);
-    }
-
-    IEnumerator FlickerOnce(GameObject go)
-    {
-        if (go == null) yield break;
-        go.SetActive(false);
-        yield return new WaitForSeconds(flickerBlinkDuration);
-        if (go != null) go.SetActive(true);
-    }
-
-    void SetEnvironmentGlitch(bool active)
-    {
-        if (active)
-        {
-            if (alienSkyboxMaterial != null) RenderSettings.skybox = alienSkyboxMaterial;
-        }
-        else
-        {
-            RenderSettings.skybox = originalSkybox;
-        }
-
         if (wallsToHide != null)
-            foreach (var w in wallsToHide) if (w != null) w.SetActive(!active);
-        if (pedestal != null) pedestal.SetActive(!active);
-        if (glitchDome != null) glitchDome.SetActive(active);
+            foreach (var w in wallsToHide) if (w != null) w.SetActive(visible);
+        if (pedestal != null) pedestal.SetActive(visible);
     }
 
     void ApplyEmission(Color c)
@@ -358,33 +268,5 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         if (artifactRenderer == null) return;
         mpb.SetColor(EmissionColor, c);
         artifactRenderer.SetPropertyBlock(mpb);
-    }
-
-    void SetSilhouettesActive(bool active)
-    {
-        if (crewSilhouettes == null) return;
-        for (int i = 0; i < crewSilhouettes.Length; i++)
-        {
-            var go = crewSilhouettes[i];
-            if (go == null) continue;
-            go.SetActive(active);
-
-            // Stretched too tall and too thin, per-instance and randomized
-            // each reveal - uniform capsule-person proportions read as a
-            // mannequin; proportions that are subtly, inconsistently
-            // "wrong" read as something that used to be a person.
-            if (active && silhouetteBaseScale != null && i < silhouetteBaseScale.Length)
-            {
-                var b = silhouetteBaseScale[i];
-                go.transform.localScale = new Vector3(
-                    b.x * Random.Range(0.7f, 1f),
-                    b.y * Random.Range(1.2f, 1.6f),
-                    b.z * Random.Range(0.7f, 1f));
-            }
-            else if (!active && silhouetteBaseScale != null && i < silhouetteBaseScale.Length)
-            {
-                go.transform.localScale = silhouetteBaseScale[i];
-            }
-        }
     }
 }

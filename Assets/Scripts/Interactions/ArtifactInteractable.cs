@@ -52,10 +52,17 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // Sealed shut for the duration so there's nothing visible through the
     // doorway when the player turns around.
     public DoorSwing labDoor;
-    // Lengthened twice now per feedback after playtesting (2s -> 5s -> 12s) -
-    // this beat is meant to actually sit and breathe, not read as a quick
-    // transition between the shake and the reset.
-    public float floatDuration = 12f;
+    // The earlier 2s->5s->12s bumps never actually took effect - the scene's
+    // already-open ArtifactInteractable instance had these fields serialized
+    // (in-memory) at their very first value the moment the fields were
+    // introduced, and every later code-default change silently never
+    // reached that live instance. Fixed by explicitly setting these on the
+    // instance directly and pinning them in the scene file, not just
+    // bumping the C# default again. Confirmed the actual bug via a real
+    // eval readback: shakeDuration/floatDuration/maxShakeAmplitude/
+    // skyboxSpinSpeed were ALL still their original 774510a values no
+    // matter how many times the default here was edited.
+    public float floatDuration = 20f;
     // Degrees/second the skybox rotates during the float, so the stars
     // visibly wheel past instead of just sitting there - this is what
     // sells "spinning," not any change to the player's own transform

@@ -1,8 +1,9 @@
 using UnityEngine;
 
-// Two looping layers (ambient drone + player breathing) that start once the
-// story begins and get louder as InteractionSequencer progresses, so the
-// station feels more oppressive the deeper the player goes.
+// Three looping layers that get louder as InteractionSequencer progresses,
+// so the station feels more oppressive the deeper the player goes. Ambient
+// drone/bass rumble start with the intro cinematic; breathing deliberately
+// starts later, once the player is actually inside the station.
 public class AmbienceManager : MonoBehaviour
 {
     public static AmbienceManager Instance { get; private set; }
@@ -25,6 +26,7 @@ public class AmbienceManager : MonoBehaviour
     public float volumeLerpSpeed = 1.2f;
 
     bool started;
+    bool breathingStarted;
     bool muted;
 
     void Awake()
@@ -47,42 +49,49 @@ public class AmbienceManager : MonoBehaviour
 
     void Update()
     {
-        if (!started)
+        // Ambient drone/bass rumble start as soon as the intro cinematic
+        // begins - the ship shouldn't be dead silent during the flight/jump.
+        if (!started && GameManager.Instance != null && GameManager.Instance.IntroStarted)
         {
-            // Starts as soon as the intro cinematic begins, not once the
-            // player is actually inside the station - the ship shouldn't be
-            // dead silent during the flight/jump.
-            if (GameManager.Instance != null && GameManager.Instance.IntroStarted)
+            started = true;
+            if (ambientSource != null)
             {
-                started = true;
-                if (ambientSource != null)
-                {
-                    ambientSource.loop = true;
-                    ambientSource.volume = ambientBaseVolume;
-                    ambientSource.Play();
-                }
-                if (breathingSource != null)
-                {
-                    breathingSource.loop = true;
-                    breathingSource.volume = breathingBaseVolume;
-                    breathingSource.Play();
-                }
-                if (bassRumbleSource != null)
-                {
-                    bassRumbleSource.loop = true;
-                    bassRumbleSource.volume = bassRumbleBaseVolume;
-                    bassRumbleSource.Play();
-                }
+                ambientSource.loop = true;
+                ambientSource.volume = ambientBaseVolume;
+                ambientSource.Play();
             }
-            return;
+            if (bassRumbleSource != null)
+            {
+                bassRumbleSource.loop = true;
+                bassRumbleSource.volume = bassRumbleBaseVolume;
+                bassRumbleSource.Play();
+            }
+        }
+
+        // Breathing waits for StoryStarted - once the player is actually
+        // standing in the station, not during the intro flight. The
+        // character isn't stressed yet mid-flight; the breathing escalation
+        // is about the station getting to them, not the trip there.
+        if (!breathingStarted && GameManager.Instance != null && GameManager.Instance.StoryStarted)
+        {
+            breathingStarted = true;
+            if (breathingSource != null)
+            {
+                breathingSource.loop = true;
+                breathingSource.volume = breathingBaseVolume;
+                breathingSource.Play();
+            }
         }
 
         float progress = InteractionSequencer.Instance != null ? InteractionSequencer.Instance.Progress : 0f;
-        if (ambientSource != null)
-            ambientSource.volume = Mathf.Lerp(ambientSource.volume, Mathf.Lerp(ambientBaseVolume, ambientMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
-        if (breathingSource != null)
+        if (started)
+        {
+            if (ambientSource != null)
+                ambientSource.volume = Mathf.Lerp(ambientSource.volume, Mathf.Lerp(ambientBaseVolume, ambientMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
+            if (bassRumbleSource != null)
+                bassRumbleSource.volume = Mathf.Lerp(bassRumbleSource.volume, Mathf.Lerp(bassRumbleBaseVolume, bassRumbleMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
+        }
+        if (breathingStarted && breathingSource != null)
             breathingSource.volume = Mathf.Lerp(breathingSource.volume, Mathf.Lerp(breathingBaseVolume, breathingMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
-        if (bassRumbleSource != null)
-            bassRumbleSource.volume = Mathf.Lerp(bassRumbleSource.volume, Mathf.Lerp(bassRumbleBaseVolume, bassRumbleMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
     }
 }

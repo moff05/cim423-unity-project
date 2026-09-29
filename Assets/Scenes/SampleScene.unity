@@ -7799,6 +7799,10 @@ MonoBehaviour:
   maxPitch: 80
   bobFrequency: 9
   bobAmplitude: 0.045
+  collisionRadius: 0.3
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -36221,7 +36225,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189, type: 3}
       propertyPath: m_TagString
@@ -42588,12 +42592,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArtifactInteractable
   artifactRenderer: {fileID: 1454845140}
-  crewSilhouettes:
-  - {fileID: 1235393717}
-  - {fileID: 574736315}
-  - {fileID: 1176964478}
-  - {fileID: 208710083}
-  - {fileID: 1509259280}
   screechAudio: {fileID: 1454845143}
   glitchAudioSource: {fileID: 116229923}
   glitchClips:
@@ -42606,7 +42604,6 @@ MonoBehaviour:
   dimBlue: {r: 0.1, g: 0.3, b: 0.6, a: 1}
   brightWhite: {r: 1, g: 1, b: 1, a: 1}
   revealDuration: 2
-  holdDuration: 7
   resetDuration: 1.5
   idlePulseSpeed: 1.2
   glitchLights:
@@ -42615,6 +42612,8 @@ MonoBehaviour:
   - {fileID: 971777615}
   - {fileID: 107190686}
   glitchInterval: 0.06
+  shakeDuration: 4
+  maxShakeAmplitude: 0.06
   wallsToHide:
   - {fileID: 44354350}
   - {fileID: 1922446651}
@@ -42661,12 +42660,9 @@ MonoBehaviour:
   - {fileID: 1538074681}
   - {fileID: 375665995}
   pedestal: {fileID: 0}
-  alienSkyboxMaterial: {fileID: 2100000, guid: 218cf956cc21a4ad5a6d48bcc7da2ef1, type: 2}
   labDoor: {fileID: 818059550}
-  glitchDome: {fileID: 696443607}
-  flySpeed: 4
-  flyRadius: 1.6
-  flyRetargetInterval: 0.35
+  floatDuration: 20
+  skyboxSpinSpeed: 15
 --- !u!114 &1454845145
 MonoBehaviour:
   m_ObjectHideFlags: 0

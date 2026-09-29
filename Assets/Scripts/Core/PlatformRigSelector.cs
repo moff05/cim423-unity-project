@@ -17,10 +17,19 @@ public class PlatformRigSelector : MonoBehaviour
 
     void Awake()
     {
-        // XR is the default everywhere now: real on Android, simulated in
-        // the Editor via the XR Device Simulator. Flip this to force the
-        // flat desktop rig back on for a quick non-VR sanity check.
+        // Real builds (Android/Quest) always use XR. In the Editor, default
+        // to the flat desktop rig (mouse-look + click-to-interact via
+        // DesktopInteractionProxy) instead of the XR Device Simulator -
+        // walking through the whole sequence with simulated VR grab/twist
+        // gestures just to test something like the ending was the opposite
+        // of easy. Flip this back to true (or wrap it in an Editor-only
+        // toggle) if you specifically need to test simulated-XR behavior
+        // in the Editor rather than real desktop input.
+#if UNITY_EDITOR
+        bool useXR = false;
+#else
         bool useXR = true;
+#endif
 
         if (desktopRig != null) desktopRig.SetActive(!useXR);
         if (xrRig != null) xrRig.SetActive(useXR);

@@ -66,18 +66,18 @@ public class FreeLookWalker : MonoBehaviour
 
         move.Normalize();
         float speed = moveSpeed * (kb.leftShiftKey.isPressed ? sprintMultiplier : 1f);
-        Vector3 delta = move * speed * Time.deltaTime;
+        Vector3 moveDelta = move * speed * Time.deltaTime;
 
-        if (delta.sqrMagnitude > 0f)
+        if (moveDelta.sqrMagnitude > 0f)
         {
-            float dist = delta.magnitude;
-            Vector3 dir = delta / dist;
+            float dist = moveDelta.magnitude;
+            Vector3 dir = moveDelta / dist;
             const float skin = 0.05f;
             if (Physics.SphereCast(transform.position, collisionRadius, dir, out RaycastHit hit, dist + skin, collisionMask, QueryTriggerInteraction.Ignore))
-                delta = dir * Mathf.Max(0f, hit.distance - skin);
+                moveDelta = dir * Mathf.Max(0f, hit.distance - skin);
         }
 
-        transform.position += delta;
+        transform.position += moveDelta;
 
         // Subtle head-bob so moving reads as walking, not floating.
         bool isMoving = move.sqrMagnitude > 0.01f;

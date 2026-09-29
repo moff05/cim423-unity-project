@@ -33,10 +33,13 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // shakes and the lights flicker" more literally than a rainbow strobe.
     public Light[] glitchLights;
     public float glitchInterval = 0.06f;
-    public float shakeDuration = 1.6f;
-    // How hard the room shakes by the end of the shake window (ramps up
-    // from 0, not constant, so it reads as building rather than just on).
-    public float maxShakeAmplitude = 0.04f;
+    // Longer, with a squared (not linear) ramp - stays subtle for most of
+    // the window then ramps sharply right at the end, so it reads as
+    // building to a real climax instead of a flat shake that's just "on."
+    public float shakeDuration = 4f;
+    // How hard the room shakes/how intense the light spikes get at the very
+    // peak of the climax (t=1 on the squared ramp).
+    public float maxShakeAmplitude = 0.06f;
 
     // "Everything disappears": hide the room and the pedestal so the
     // scene's real default skybox (a starfield, already what
@@ -49,10 +52,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // Sealed shut for the duration so there's nothing visible through the
     // doorway when the player turns around.
     public DoorSwing labDoor;
-    // Longer and slower per feedback after playtesting - 2s at 40deg/s felt
-    // rushed and wasn't a clean read as "spinning" at all (barely a quarter
-    // turn in the whole beat).
-    public float floatDuration = 5f;
+    // Lengthened twice now per feedback after playtesting (2s -> 5s -> 12s) -
+    // this beat is meant to actually sit and breathe, not read as a quick
+    // transition between the shake and the reset.
+    public float floatDuration = 12f;
     // Degrees/second the skybox rotates during the float, so the stars
     // visibly wheel past instead of just sitting there - this is what
     // sells "spinning," not any change to the player's own transform
@@ -147,10 +150,11 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // The room shakes and the lights flicker, building for shakeDuration.
         yield return ShakeAndFlickerRoutine(shakeDuration);
 
-        // Everything disappears - hide the room, seal the door, cut every
-        // sound (ambience/breathing/bass, plus anything still tailing off
-        // from the shake), and float in silent open space with the stars
-        // spinning for floatDuration.
+        // Everything disappears - hide the room, seal the door, cut the
+        // ambient drone/bass rumble (plus anything tailing off from the
+        // shake) and float in open space with the stars spinning for
+        // floatDuration. Breathing keeps playing through this - it's the
+        // one sound that's still "you" even once the room is gone.
         SetRoomVisible(false);
         if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
         if (screechAudio != null) screechAudio.Stop();
@@ -194,9 +198,11 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             elapsed += Time.deltaTime;
             flickerTimer += Time.deltaTime;
 
-            // Ramps 0 -> maxShakeAmplitude so it reads as building, not a
-            // flat constant shake from the first frame.
-            float amplitude = maxShakeAmplitude * (elapsed / duration);
+            // Squared, not linear - stays mild for most of the window, then
+            // ramps sharply right at the end. A real climax builds instead
+            // of just being "on" at a constant rate the whole time.
+            float buildT = Mathf.Pow(Mathf.Clamp01(elapsed / duration), 2f);
+            float amplitude = maxShakeAmplitude * buildT;
             if (wallsToHide != null)
             {
                 for (int i = 0; i < wallsToHide.Length; i++)
@@ -216,11 +222,12 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
                     for (int i = 0; i < glitchLights.Length; i++)
                     {
                         if (glitchLights[i] == null) continue;
-                        // Mostly near-off with occasional bright spikes -
-                        // a power failure, not a light show.
-                        bool spike = Random.value < 0.3f;
+                        // Spikes get more frequent and more intense as the
+                        // build climbs - a power failure that's getting worse,
+                        // not a fixed flicker rate from the first frame.
+                        bool spike = Random.value < Mathf.Lerp(0.1f, 0.55f, buildT);
                         glitchLights[i].intensity = spike
-                            ? glitchLightBaseIntensities[i] * Random.Range(1.5f, 2.2f)
+                            ? glitchLightBaseIntensities[i] * Random.Range(1.5f, Mathf.Lerp(2f, 3.2f, buildT))
                             : glitchLightBaseIntensities[i] * Random.Range(0f, 0.15f);
                     }
                 }

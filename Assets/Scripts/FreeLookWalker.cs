@@ -12,6 +12,13 @@ public class FreeLookWalker : MonoBehaviour
     public float bobFrequency = 9f;
     public float bobAmplitude = 0.045f;
 
+    // This rig was dead code until desktop testing became the Editor
+    // default (see PlatformRigSelector) - movement was raw transform
+    // translation with no collision check at all, so walking straight
+    // through walls was never actually possible to notice before.
+    public float collisionRadius = 0.3f;
+    public LayerMask collisionMask = ~0;
+
     float yaw;
     float pitch;
     bool cursorLocked = true;
@@ -59,7 +66,18 @@ public class FreeLookWalker : MonoBehaviour
 
         move.Normalize();
         float speed = moveSpeed * (kb.leftShiftKey.isPressed ? sprintMultiplier : 1f);
-        transform.position += move * speed * Time.deltaTime;
+        Vector3 delta = move * speed * Time.deltaTime;
+
+        if (delta.sqrMagnitude > 0f)
+        {
+            float dist = delta.magnitude;
+            Vector3 dir = delta / dist;
+            const float skin = 0.05f;
+            if (Physics.SphereCast(transform.position, collisionRadius, dir, out RaycastHit hit, dist + skin, collisionMask, QueryTriggerInteraction.Ignore))
+                delta = dir * Mathf.Max(0f, hit.distance - skin);
+        }
+
+        transform.position += delta;
 
         // Subtle head-bob so moving reads as walking, not floating.
         bool isMoving = move.sqrMagnitude > 0.01f;

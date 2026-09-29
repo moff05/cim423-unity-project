@@ -32,15 +32,16 @@ public class AmbienceManager : MonoBehaviour
         Instance = this;
     }
 
-    // Pauses (not stops) all three loops so they resume exactly where they
+    // Pauses (not stops) the drone/rumble so they resume exactly where they
     // left off, at whatever volume the escalation curve has already reached,
     // instead of restarting or popping back in at the wrong loudness.
+    // Breathing deliberately keeps playing through a mute - it's the one
+    // sound that's still "you" even once the room and its ambience are gone.
     public void SetMuted(bool value)
     {
         if (muted == value) return;
         muted = value;
         if (ambientSource != null) { if (value) ambientSource.Pause(); else ambientSource.UnPause(); }
-        if (breathingSource != null) { if (value) breathingSource.Pause(); else breathingSource.UnPause(); }
         if (bassRumbleSource != null) { if (value) bassRumbleSource.Pause(); else bassRumbleSource.UnPause(); }
     }
 

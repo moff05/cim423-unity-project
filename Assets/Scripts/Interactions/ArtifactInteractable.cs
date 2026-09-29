@@ -51,15 +51,19 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     public GameObject glitchDome;
     Material originalSkybox;
 
-    // Silhouettes dart erratically around their starting spot instead of
-    // standing still while reaching - reads as "flying around" the room.
-    public float flySpeed = 4f;
+    // Silhouettes snap-teleport around their starting spot instead of
+    // standing still (or smoothly flying, which read as balletic) - see
+    // FlySilhouettesRoutine below for the jump-cut + flicker behavior.
     public float flyRadius = 1.6f;
     public float flyRetargetInterval = 0.35f;
+    // Restrained, sickly palette instead of a full neon rainbow - deep
+    // blood red, bile green, a near-black violet, and harsh white strobes.
+    // The old set (bright cyan/pink/purple cycling fast) read as a rave
+    // filter, not dread; horror lighting stays narrow and wrong-feeling.
     static readonly Color[] GlitchColors =
     {
-        new Color(1f, 0.1f, 0.1f), new Color(0.6f, 0f, 1f), new Color(0f, 1f, 0.8f),
-        new Color(1f, 1f, 1f), new Color(1f, 0.2f, 0.8f), new Color(0.3f, 1f, 0.1f)
+        new Color(0.55f, 0.04f, 0.04f), new Color(0.4f, 0.55f, 0.12f), new Color(0.12f, 0f, 0.18f),
+        new Color(1f, 1f, 1f), new Color(0.25f, 0.3f, 0.35f)
     };
 
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
@@ -207,19 +211,22 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         }
     }
 
+    // Snaps between positions instead of smoothly flying there - a graceful
+    // float-and-spin read as balletic/whimsical, not wrong. A jump-cut
+    // teleport every retarget tick (with a couple of quick visibility
+    // flickers around each snap) reads as broken reality instead.
+    public float flickerChancePerSnap = 0.6f;
+    public float flickerBlinkDuration = 0.04f;
+
     IEnumerator FlySilhouettesRoutine(float duration)
     {
         if (crewSilhouettes == null || crewSilhouettes.Length == 0) yield break;
 
         var basePos = new Vector3[crewSilhouettes.Length];
-        var targets = new Vector3[crewSilhouettes.Length];
-        var spinSpeed = new float[crewSilhouettes.Length];
         for (int i = 0; i < crewSilhouettes.Length; i++)
         {
             if (crewSilhouettes[i] == null) continue;
             basePos[i] = crewSilhouettes[i].transform.position;
-            targets[i] = basePos[i];
-            spinSpeed[i] = Random.Range(-220f, 220f);
         }
 
         float retargetTimer = 0f;
@@ -228,18 +235,20 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         {
             t += Time.deltaTime;
             retargetTimer += Time.deltaTime;
-            bool retarget = retargetTimer >= flyRetargetInterval;
-            if (retarget) retargetTimer = 0f;
-
-            for (int i = 0; i < crewSilhouettes.Length; i++)
+            if (retargetTimer >= flyRetargetInterval)
             {
-                if (crewSilhouettes[i] == null) continue;
-                if (retarget)
-                    targets[i] = basePos[i] + Random.insideUnitSphere * flyRadius;
-
-                var tr = crewSilhouettes[i].transform;
-                tr.position = Vector3.MoveTowards(tr.position, targets[i], flySpeed * Time.deltaTime);
-                tr.Rotate(Vector3.up, spinSpeed[i] * Time.deltaTime, Space.World);
+                retargetTimer = 0f;
+                for (int i = 0; i < crewSilhouettes.Length; i++)
+                {
+                    if (crewSilhouettes[i] == null) continue;
+                    var tr = crewSilhouettes[i].transform;
+                    tr.position = basePos[i] + Random.insideUnitSphere * flyRadius;
+                    // Snap to a random facing too - a spin is smooth motion,
+                    // a sudden wrong-way stare is not.
+                    tr.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                    if (Random.value < flickerChancePerSnap)
+                        StartCoroutine(FlickerOnce(crewSilhouettes[i]));
+                }
             }
             yield return null;
         }
@@ -249,6 +258,14 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             if (crewSilhouettes[i] == null) continue;
             crewSilhouettes[i].transform.position = basePos[i];
         }
+    }
+
+    IEnumerator FlickerOnce(GameObject go)
+    {
+        if (go == null) yield break;
+        go.SetActive(false);
+        yield return new WaitForSeconds(flickerBlinkDuration);
+        if (go != null) go.SetActive(true);
     }
 
     void SetEnvironmentGlitch(bool active)

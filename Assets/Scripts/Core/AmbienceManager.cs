@@ -12,8 +12,11 @@ public class AmbienceManager : MonoBehaviour
     public AudioSource bassRumbleSource;
     public float ambientBaseVolume = 0.1f;
     public float ambientMaxVolume = 0.32f;
-    public float breathingBaseVolume = 0.07f;
-    public float breathingMaxVolume = 0.26f;
+    // Widened 0.07->0.26 to 0.12->0.42 - the old range was getting lost
+    // under the bass rumble/ambient drone, so the escalation nobody could
+    // hear wasn't doing the job it was built for.
+    public float breathingBaseVolume = 0.12f;
+    public float breathingMaxVolume = 0.42f;
     public float bassRumbleBaseVolume = 0.25f;
     public float bassRumbleMaxVolume = 0.55f;
     public float volumeLerpSpeed = 1.2f;

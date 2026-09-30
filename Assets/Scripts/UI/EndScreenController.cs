@@ -12,6 +12,14 @@ public class EndScreenController : MonoBehaviour
 
     void Awake()
     {
+        // Diagnostic breadcrumbs, same pattern as ArtifactInteractable's
+        // [ArtifactEnding] logs - added after "restart and quit don't
+        // work" couldn't be reproduced or confirmed from the last device
+        // test (the app was paused ~15s after the ending sequence
+        // completed, before there was clear evidence either button was
+        // ever actually pressed). Tagged [EndScreen], visible via
+        // adb logcat.
+        Debug.Log("[EndScreen] Awake - canvasGroup=" + (canvasGroup != null) + " restartButton=" + (restartButton != null) + " quitButton=" + (quitButton != null));
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0f;
@@ -24,6 +32,7 @@ public class EndScreenController : MonoBehaviour
 
     public void Show()
     {
+        Debug.Log("[EndScreen] Show() called at realtime=" + Time.realtimeSinceStartup);
         if (canvasGroup == null) return;
         canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
@@ -32,6 +41,7 @@ public class EndScreenController : MonoBehaviour
 
     void OnRestart()
     {
+        Debug.Log("[EndScreen] OnRestart clicked at realtime=" + Time.realtimeSinceStartup);
         // LabState.IntroShown is a plain static bool, not scene state - it
         // survives a scene reload on its own (statics only reset on a full
         // domain reload/app relaunch). Without this, restarting after
@@ -44,6 +54,7 @@ public class EndScreenController : MonoBehaviour
 
     void OnQuit()
     {
+        Debug.Log("[EndScreen] OnQuit clicked at realtime=" + Time.realtimeSinceStartup);
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
 #else

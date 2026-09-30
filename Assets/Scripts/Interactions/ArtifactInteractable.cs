@@ -270,7 +270,21 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
         // Back to normal.
         SetRoomVisible(true);
-        Debug.Log("[ArtifactEnding] station reactivated at realtime=" + Time.realtimeSinceStartup + " stationActive=" + (stationRoot != null && stationRoot.activeSelf));
+        // Camera pose logged here specifically to test a theory from
+        // direct feedback ("didn't see the station reappear before the
+        // dialogue triggers") - the float has no visual anchor, so the
+        // player can end up facing any direction by the time it ends;
+        // the dialogue snaps to face them regardless (WorldSpaceUIFollow)
+        // while the room, being real geometry, doesn't. This records
+        // exactly where the player was looking at the moment the room
+        // actually reactivates, to confirm or rule that out directly
+        // instead of guessing again.
+        var cam = Camera.main;
+        Debug.Log("[ArtifactEnding] station reactivated at realtime=" + Time.realtimeSinceStartup
+            + " stationActive=" + (stationRoot != null && stationRoot.activeSelf)
+            + " camPos=" + (cam != null ? cam.transform.position.ToString() : "null")
+            + " camForward=" + (cam != null ? cam.transform.forward.ToString() : "null")
+            + " pedestalPos=" + (pedestal != null ? pedestal.transform.position.ToString() : "null"));
         if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
 
         t = 0f;

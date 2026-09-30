@@ -36,10 +36,12 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // Longer, with a squared (not linear) ramp - stays subtle for most of
     // the window then ramps sharply right at the end, so it reads as
     // building to a real climax instead of a flat shake that's just "on."
-    public float shakeDuration = 4f;
+    // Lengthened again (4s -> 6s) and made more intense per "make the
+    // vibrations last a little longer, get a little more climactic."
+    public float shakeDuration = 6f;
     // How hard the room shakes/how intense the light spikes get at the very
     // peak of the climax (t=1 on the squared ramp).
-    public float maxShakeAmplitude = 0.06f;
+    public float maxShakeAmplitude = 0.08f;
 
     // wallsToHide/pedestal are used only for the shake jitter below (need
     // individual objects to nudge). Real bug found via direct feedback
@@ -54,12 +56,20 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     public GameObject[] wallsToHide;
     public GameObject pedestal;
     public GameObject stationRoot;
+    // Found via direct feedback + a screenshot showing a tall dark pillar
+    // and a small panel still floating in "empty space": the supply-locker
+    // side puzzle (SupplyLocker, LockerDoorHinge, KeypadLock, Keycard,
+    // KeycardSocket) and the room dust-mote particle systems all live as
+    // separate root-level objects, never nested under Station at all -
+    // hiding Station couldn't have caught them.
+    public GameObject[] otherObjectsToHide;
     // Sealed shut for the duration so there's nothing visible through the
     // doorway when the player turns around.
     public DoorSwing labDoor;
-    // 20s read as too long once the earlier stuck-value bug was actually
-    // fixed and the real duration became perceptible - settled on 8s.
-    public float floatDuration = 8f;
+    // 20s -> 8s -> 12s. 8s then read as "way too long" too (subjective, and
+    // possibly compounded by the stray floating objects being distracting) -
+    // 12s is the explicitly requested number.
+    public float floatDuration = 12f;
     // The Starfield panoramic texture has a bright planet feature sitting
     // near the projection's pole, not the horizon band - the Panoramic
     // shader's _Rotation only exposes a single yaw axis, so anything near
@@ -162,16 +172,20 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // Everything disappears - hide the room, seal the door, cut the
         // ambient drone/bass rumble (plus anything tailing off from the
         // shake) and float in open space with the stars spinning for
-        // floatDuration. Breathing keeps playing through this - it's the
-        // one sound that's still "you" even once the room is gone.
+        // floatDuration. Breathing is not a continuous layer anymore - it
+        // plays only for this one beat, per direct feedback ("mute the
+        // breaths until you trigger the disappearing act, then that's the
+        // only part you can hear the breath").
         SetRoomVisible(false);
         if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
         if (screechAudio != null) screechAudio.Stop();
         if (glitchAudioSource != null) glitchAudioSource.Stop();
         AmbienceManager.Instance?.SetMuted(true);
+        AmbienceManager.Instance?.PlayBreathingOnce();
 
         yield return SpinSkyboxRoutine(floatDuration);
 
+        AmbienceManager.Instance?.StopBreathing();
         AmbienceManager.Instance?.SetMuted(false);
 
         // Back to normal.
@@ -292,6 +306,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         if (wallsToHide != null)
             foreach (var w in wallsToHide) if (w != null) w.SetActive(visible);
         if (pedestal != null) pedestal.SetActive(visible);
+        // Supply-locker puzzle + dust-mote particle systems - all root-level,
+        // outside Station entirely, so the above never touched them.
+        if (otherObjectsToHide != null)
+            foreach (var o in otherObjectsToHide) if (o != null) o.SetActive(visible);
     }
 
     void ApplyEmission(Color c)

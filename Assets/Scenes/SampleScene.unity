@@ -42612,8 +42612,8 @@ MonoBehaviour:
   - {fileID: 971777615}
   - {fileID: 107190686}
   glitchInterval: 0.06
-  shakeDuration: 4
-  maxShakeAmplitude: 0.06
+  shakeDuration: 6
+  maxShakeAmplitude: 0.08
   wallsToHide:
   - {fileID: 44354350}
   - {fileID: 1922446651}
@@ -42661,8 +42661,16 @@ MonoBehaviour:
   - {fileID: 375665995}
   pedestal: {fileID: 0}
   stationRoot: {fileID: 204574663}
+  otherObjectsToHide:
+  - {fileID: 801951315}
+  - {fileID: 2139394845}
+  - {fileID: 793423547}
+  - {fileID: 605078862}
+  - {fileID: 374910771}
+  - {fileID: 581995626}
+  - {fileID: 918418121}
   labDoor: {fileID: 818059550}
-  floatDuration: 8
+  floatDuration: 12
   skyboxSpinSpeed: 5
 --- !u!114 &1454845145
 MonoBehaviour:
@@ -51733,10 +51741,9 @@ MonoBehaviour:
   bassRumbleSource: {fileID: 881030027}
   ambientBaseVolume: 0.08
   ambientMaxVolume: 0.22
-  breathingBaseVolume: 0.18
-  breathingMaxVolume: 0.55
   bassRumbleBaseVolume: 0.15
   bassRumbleMaxVolume: 0.35
+  breathingPlayVolume: 0.5
   volumeLerpSpeed: 1.2
 --- !u!1 &1822338356
 GameObject:

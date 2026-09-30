@@ -42660,9 +42660,10 @@ MonoBehaviour:
   - {fileID: 1538074681}
   - {fileID: 375665995}
   pedestal: {fileID: 0}
+  stationRoot: {fileID: 204574663}
   labDoor: {fileID: 818059550}
-  floatDuration: 20
-  skyboxSpinSpeed: 15
+  floatDuration: 8
+  skyboxSpinSpeed: 5
 --- !u!114 &1454845145
 MonoBehaviour:
   m_ObjectHideFlags: 0

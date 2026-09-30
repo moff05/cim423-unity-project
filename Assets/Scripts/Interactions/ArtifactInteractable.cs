@@ -41,33 +41,35 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // peak of the climax (t=1 on the squared ramp).
     public float maxShakeAmplitude = 0.06f;
 
-    // "Everything disappears": hide the room and the pedestal so the
-    // scene's real default skybox (a starfield, already what
-    // RenderSettings.skybox is outside this effect) becomes visible in
-    // every direction - the player is standing in the same spot the whole
-    // time, it just reads as floating in open space once there's no room
-    // left to see. No separate "space" skybox material needed for this.
+    // wallsToHide/pedestal are used only for the shake jitter below (need
+    // individual objects to nudge). Real bug found via direct feedback
+    // ("the stuff behind me doesn't disappear either"): wallsToHide only
+    // ever listed the Lab's own contents, but the Lab's only doorway opens
+    // into ControlRoom (a completely separate room, never hidden) - hiding
+    // just the Lab's door left a clear, unobstructed view straight into
+    // it. "Everything disappears" now hides the whole Station root in one
+    // call instead of a hand-maintained per-room object list, which is the
+    // only way to actually guarantee nothing else is visible regardless of
+    // what's connected to what.
     public GameObject[] wallsToHide;
     public GameObject pedestal;
+    public GameObject stationRoot;
     // Sealed shut for the duration so there's nothing visible through the
     // doorway when the player turns around.
     public DoorSwing labDoor;
-    // The earlier 2s->5s->12s bumps never actually took effect - the scene's
-    // already-open ArtifactInteractable instance had these fields serialized
-    // (in-memory) at their very first value the moment the fields were
-    // introduced, and every later code-default change silently never
-    // reached that live instance. Fixed by explicitly setting these on the
-    // instance directly and pinning them in the scene file, not just
-    // bumping the C# default again. Confirmed the actual bug via a real
-    // eval readback: shakeDuration/floatDuration/maxShakeAmplitude/
-    // skyboxSpinSpeed were ALL still their original 774510a values no
-    // matter how many times the default here was edited.
-    public float floatDuration = 20f;
-    // Degrees/second the skybox rotates during the float, so the stars
-    // visibly wheel past instead of just sitting there - this is what
-    // sells "spinning," not any change to the player's own transform
-    // (deliberately not touched - safe regardless of desktop or XR rig).
-    public float skyboxSpinSpeed = 15f;
+    // 20s read as too long once the earlier stuck-value bug was actually
+    // fixed and the real duration became perceptible - settled on 8s.
+    public float floatDuration = 8f;
+    // The Starfield panoramic texture has a bright planet feature sitting
+    // near the projection's pole, not the horizon band - the Panoramic
+    // shader's _Rotation only exposes a single yaw axis, so anything near
+    // that pole traces a visible circle around it rather than just panning
+    // sideways like the rest of the sky does. That reads as "the planet is
+    // spinning" if the rotation is fast enough to notice; there's no second
+    // axis to rotate around instead, so slowing this down a lot is the
+    // available fix, not eliminating the rotation entirely (which was the
+    // whole point of this beat).
+    public float skyboxSpinSpeed = 5f;
 
     static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
     static readonly int SkyboxRotation = Shader.PropertyToID("_Rotation");
@@ -283,6 +285,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
     void SetRoomVisible(bool visible)
     {
+        // The real fix: the whole Station (every room, not just the Lab)
+        // hides in one call, so nothing connected to the Lab - through the
+        // door, or anywhere else - can be left visible by omission.
+        if (stationRoot != null) stationRoot.SetActive(visible);
         if (wallsToHide != null)
             foreach (var w in wallsToHide) if (w != null) w.SetActive(visible);
         if (pedestal != null) pedestal.SetActive(visible);

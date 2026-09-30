@@ -32,6 +32,12 @@ public class EndScreenController : MonoBehaviour
 
     void OnRestart()
     {
+        // LabState.IntroShown is a plain static bool, not scene state - it
+        // survives a scene reload on its own (statics only reset on a full
+        // domain reload/app relaunch). Without this, restarting after
+        // reaching the ending would silently skip ECHO's one-time room
+        // intro line on the second playthrough.
+        LabState.IntroShown = false;
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
     }

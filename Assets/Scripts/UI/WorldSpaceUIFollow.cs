@@ -34,6 +34,20 @@ public class WorldSpaceUIFollow : MonoBehaviour
     // while still not chasing small head movements.
     public float repositionAngle = 30f;
 
+    // How far the panel's actual distance from the camera can drift from its
+    // intended standoff (`distance`) before it re-centers, for the
+    // non-continuous canvases. The angle check alone missed a real case: a
+    // panel can stay pointed almost exactly where the camera is currently
+    // looking (angle near 0) while sitting hundreds of units away, if the
+    // camera has since been teleported/flown off along roughly the same
+    // heading it was on when the panel last snapped (e.g. DialogueCanvas
+    // left at its Docking Bay position while the intro cinematic's camera
+    // flies out along the same forward axis - angle stayed under the
+    // deadzone the whole flight, so the panel silently never followed and
+    // dialogue rendered as an invisible speck ~160 units away instead of in
+    // front of the player).
+    public float distanceTolerance = 0.5f;
+
     void LateUpdate()
     {
         var cam = Camera.main;
@@ -54,7 +68,9 @@ public class WorldSpaceUIFollow : MonoBehaviour
         }
 
         Vector3 toPanel = transform.position - cam.transform.position;
-        if (toPanel.sqrMagnitude < 0.0001f || Vector3.Angle(cam.transform.forward, toPanel) > repositionAngle)
+        bool angledAway = toPanel.sqrMagnitude < 0.0001f || Vector3.Angle(cam.transform.forward, toPanel) > repositionAngle;
+        bool wrongDistance = Mathf.Abs(toPanel.magnitude - distance) > distanceTolerance;
+        if (angledAway || wrongDistance)
             Snap(cam);
     }
 

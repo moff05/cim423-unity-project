@@ -46,7 +46,11 @@ public class TwistHandle : MonoBehaviour
     // whichever camera is active so it's readable regardless of approach
     // angle.
     public float hintHeight = 0.45f;
-    public float hintScale = 0.0025f;
+    // Was 0.0025 - rendered as a couple of illegible pixels at any normal
+    // interaction distance (confirmed via screenshot: text was present and
+    // correct, just microscopic). 0.02 was verified live to read clearly
+    // at 1m.
+    public float hintScale = 0.02f;
     TextMeshPro hintText;
 
     XRSimpleInteractable interactable;

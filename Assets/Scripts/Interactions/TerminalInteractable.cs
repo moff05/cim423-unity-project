@@ -23,6 +23,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
     MaterialPropertyBlock mpb;
     bool hovering;
     bool completed;
+    FloatingHintText hint;
 
     void Awake()
     {
@@ -33,6 +34,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
             infoPanel.blocksRaycasts = false;
             infoPanel.interactable = false;
         }
+        hint = FloatingHintText.Attach(transform);
     }
 
     void Update()
@@ -64,11 +66,13 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
         hovering = true;
         if (!IsCurrentlyInteractable()) return;
         ApplyEmission(Color.white * 2.5f);
+        hint.Show("PULL TRIGGER");
     }
 
     public void OnHoverExit()
     {
         hovering = false;
+        hint.Hide();
     }
 
     public void OnActivate()
@@ -76,6 +80,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
         if (!IsCurrentlyInteractable()) return;
         completed = true;
         ApplyEmission(Color.black);
+        hint.Hide();
         StartCoroutine(ActivateRoutine());
     }
 

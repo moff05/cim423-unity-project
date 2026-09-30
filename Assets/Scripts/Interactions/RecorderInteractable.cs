@@ -22,11 +22,13 @@ public class RecorderInteractable : MonoBehaviour, IDesktopInteractable
     Coroutine scaleRoutine;
     bool played;
     bool hovering;
+    FloatingHintText hint;
 
     void Awake()
     {
         mpb = new MaterialPropertyBlock();
         baseScale = transform.localScale;
+        hint = FloatingHintText.Attach(transform);
     }
 
     void Update()
@@ -59,17 +61,20 @@ public class RecorderInteractable : MonoBehaviour, IDesktopInteractable
         if (!IsCurrentlyInteractable()) return;
         ApplyEmission(Color.white * 2.5f);
         TweenScale(baseScale * hoverScale);
+        hint.Show("PULL TRIGGER");
     }
 
     public void OnHoverExit()
     {
         hovering = false;
         TweenScale(baseScale);
+        hint.Hide();
     }
 
     public void OnActivate()
     {
         if (!IsCurrentlyInteractable()) return;
+        hint.Hide();
         StartCoroutine(ActivateRoutine());
     }
 

@@ -36,6 +36,22 @@ public class InteractionSequencer : MonoBehaviour
         "airlock", "corridordoor", "terminal", "labdoor", "recorder", "artifact"
     };
 
+    // Player-facing objective text per step, for ObjectiveHUD - per direct
+    // feedback ("the next item on the list should have a yellow glow or
+    // something... very obvious what the next thing to do is"). The current
+    // step's object already pulses gold, but that only helps once you're
+    // already looking at the right thing; this tells you in words,
+    // independent of where you're looking.
+    static readonly Dictionary<string, string> StepDescriptions = new Dictionary<string, string>
+    {
+        { "airlock", "Open the airlock" },
+        { "corridordoor", "Open the corridor door" },
+        { "terminal", "Check the terminal" },
+        { "labdoor", "Open the lab door" },
+        { "recorder", "Play the recorder" },
+        { "artifact", "Examine the artifact" },
+    };
+
     int currentIndex;
 
     void Awake()
@@ -46,6 +62,18 @@ public class InteractionSequencer : MonoBehaviour
     // 0 at the start, 1 once every step is complete - drives things like
     // ambience volume that should build as the player goes deeper in.
     public float Progress => stepOrder.Count > 0 ? Mathf.Clamp01((float)currentIndex / stepOrder.Count) : 0f;
+
+    public string CurrentStepId => currentIndex < stepOrder.Count ? stepOrder[currentIndex] : null;
+
+    public string CurrentStepDescription
+    {
+        get
+        {
+            var id = CurrentStepId;
+            if (id == null) return null;
+            return StepDescriptions.TryGetValue(id, out var desc) ? desc : id;
+        }
+    }
 
     public bool IsCurrentStep(string stepId)
     {

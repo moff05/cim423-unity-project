@@ -89,14 +89,22 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     static readonly int SkyboxRotation = Shader.PropertyToID("_Rotation");
     MaterialPropertyBlock mpb;
     bool triggered;
+    // So ObjectiveHUD can stop showing "NEXT: Examine the artifact" once
+    // the ending is actually underway - InteractionSequencer.CompleteStep
+    // for this step only fires at the very end of the whole reveal/shake/
+    // float sequence, so without this the HUD would otherwise linger
+    // through the entire dramatic beat.
+    public bool HasTriggered => triggered;
     Color[] glitchLightBaseColors;
     float[] glitchLightBaseIntensities;
     Vector3[] wallBasePositions;
     Vector3 pedestalBasePosition;
+    FloatingHintText hint;
 
     void Awake()
     {
         mpb = new MaterialPropertyBlock();
+        hint = FloatingHintText.Attach(transform);
 
         if (wallsToHide != null)
         {
@@ -125,6 +133,11 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         if (interactable != null)
         {
             interactable.selectEntered.AddListener(args => { HapticUtility.Pulse(args.interactorObject, 0.7f, 0.2f); OnActivate(); });
+            // Wasn't wired at all before - OnHoverEnter/OnHoverExit existed
+            // as empty stubs, so the Artifact never got the same "PULL
+            // TRIGGER" hint every other simple-select interactable now has.
+            interactable.hoverEntered.AddListener(_ => OnHoverEnter());
+            interactable.hoverExited.AddListener(_ => OnHoverExit());
         }
     }
 
@@ -141,8 +154,16 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         return InteractionSequencer.Instance == null || InteractionSequencer.Instance.IsCurrentStep(StepId);
     }
 
-    public void OnHoverEnter() { }
-    public void OnHoverExit() { }
+    public void OnHoverEnter()
+    {
+        if (!IsCurrentlyInteractable()) return;
+        hint.Show("PULL TRIGGER");
+    }
+
+    public void OnHoverExit()
+    {
+        hint.Hide();
+    }
 
     // Deadlock fix, confirmed via a real console error: "Coroutine couldn't
     // be started because the game object 'Artifact' is inactive." The
@@ -164,6 +185,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     {
         if (!IsCurrentlyInteractable()) return;
         triggered = true;
+        hint.Hide();
         CoroutineHost.StartCoroutine(RevealRoutine());
     }
 
@@ -186,8 +208,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
         if (screechAudio != null && screechAudio.clip != null) screechAudio.Play();
 
+        Debug.Log("[ArtifactEnding] shake starting at realtime=" + Time.realtimeSinceStartup);
         // The room shakes and the lights flicker, building for shakeDuration.
         yield return ShakeAndFlickerRoutine(shakeDuration);
+        Debug.Log("[ArtifactEnding] shake done at realtime=" + Time.realtimeSinceStartup);
 
         // Everything disappears - hide the room, seal the door, cut the
         // ambient drone/bass rumble (plus anything tailing off from the
@@ -203,13 +227,28 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         AmbienceManager.Instance?.SetMuted(true);
         AmbienceManager.Instance?.PlayBreathingOnce();
 
+        // Belt-and-suspenders: this exact beat ("space never comes back")
+        // has been reported multiple times on real Quest hardware and could
+        // not be reproduced after repeated live Editor testing post the
+        // CoroutineHost deadlock fix - GameManager/Systems verified never
+        // hidden, no Time.timeScale manipulation anywhere in the project.
+        // Whatever the real cause turns out to be, the player should never
+        // be permanently stranded over it. This runs as a fully independent
+        // coroutine on the same host - if the main sequence is somehow
+        // blocked rather than just slow, this still fires and forces
+        // recovery, well past any legitimate duration this beat should take.
+        CoroutineHost.StartCoroutine(FloatWatchdog(floatDuration));
+
+        Debug.Log("[ArtifactEnding] float starting at realtime=" + Time.realtimeSinceStartup + " stationActive=" + (stationRoot != null && stationRoot.activeSelf));
         yield return SpinSkyboxRoutine(floatDuration);
+        Debug.Log("[ArtifactEnding] float done at realtime=" + Time.realtimeSinceStartup);
 
         AmbienceManager.Instance?.StopBreathing();
         AmbienceManager.Instance?.SetMuted(false);
 
         // Back to normal.
         SetRoomVisible(true);
+        Debug.Log("[ArtifactEnding] station reactivated at realtime=" + Time.realtimeSinceStartup + " stationActive=" + (stationRoot != null && stationRoot.activeSelf));
         if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
 
         t = 0f;
@@ -333,6 +372,23 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         }
 
         if (hasRotation) sky.SetFloat(SkyboxRotation, startRotation);
+    }
+
+    IEnumerator FloatWatchdog(float expectedFloatDuration)
+    {
+        float deadline = expectedFloatDuration + 15f;
+        yield return new WaitForSecondsRealtime(deadline);
+        if (stationRoot != null && !stationRoot.activeSelf)
+        {
+            Debug.LogWarning("[ArtifactEnding] Watchdog fired - station still hidden " + deadline + "s after the float began. Forcing recovery.");
+            SetRoomVisible(true);
+            if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
+            AmbienceManager.Instance?.StopBreathing();
+            AmbienceManager.Instance?.SetMuted(false);
+            ApplyEmission(dimBlue);
+            InteractionSequencer.Instance?.CompleteStep(StepId);
+            endScreen?.Show();
+        }
     }
 
     void SetRoomVisible(bool visible)

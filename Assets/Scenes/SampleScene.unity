@@ -13767,6 +13767,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34d55585715b0448f95e19ce2e72b3e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TwistHandle
+  stepId: corridordoor
   visualToRotate: {fileID: 1773902153}
   localSpinAxis: {x: 0, y: 1, z: 0}
   maxAngle: 270
@@ -38538,6 +38539,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34d55585715b0448f95e19ce2e72b3e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TwistHandle
+  stepId: airlock
   visualToRotate: {fileID: 375778165}
   localSpinAxis: {x: 0, y: 1, z: 0}
   maxAngle: 270
@@ -44168,6 +44170,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34d55585715b0448f95e19ce2e72b3e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TwistHandle
+  stepId: labdoor
   visualToRotate: {fileID: 1234630059}
   localSpinAxis: {x: 0, y: 1, z: 0}
   maxAngle: 270

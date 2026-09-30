@@ -102,6 +102,24 @@ public class IntroSequence : MonoBehaviour
         if (secondaryLight != null) secondaryLight.enabled = true;
         if (interiorRoot != null) interiorRoot.SetActive(false);
 
+        // Recenter yaw: now that CinematicCamera has real head-tracking
+        // (see the TrackedPoseDriver fix), the flight's "forward" needs to
+        // be wherever the player happens to be physically facing right now
+        // - not a fixed world direction. Without this, a player who was
+        // looking off to one side while pressing Begin (e.g. still facing
+        // the Start Screen terminal) would start the whole flight already
+        // turned away from the ship, with no indication "forward" had
+        // shifted ("I got spun around... couldn't see the ship"). Wait a
+        // frame first so the TrackedPoseDriver has applied a fresh pose
+        // reading before sampling it. Yaw only - pitch/roll stay real, only
+        // left-right facing gets reset, same as a normal VR recenter.
+        yield return null;
+        if (cinematicRigRoot != null && cinematicCamera != null)
+        {
+            float currentYaw = cinematicCamera.transform.localEulerAngles.y;
+            cinematicRigRoot.transform.localRotation = Quaternion.Euler(0f, -currentYaw, 0f);
+        }
+
         if (cinematicRigRoot != null)
         {
             var rigTransform = cinematicRigRoot.transform;

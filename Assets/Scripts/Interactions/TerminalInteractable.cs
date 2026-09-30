@@ -34,7 +34,12 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
             infoPanel.blocksRaycasts = false;
             infoPanel.interactable = false;
         }
-        hint = FloatingHintText.Attach(transform);
+        // Default height (0.45) sat just under the console's own top
+        // (measured at 0.4875 above its pivot), so the label rendered
+        // partially behind/inside the monitor housing - confirmed via
+        // direct feedback ("the pull trigger is kind of blocked by the
+        // item"). 0.65 clears it with real margin.
+        hint = FloatingHintText.Attach(transform, height: 0.65f);
     }
 
     void Update()

@@ -181,12 +181,33 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     // inactive.
     MonoBehaviour CoroutineHost => GameManager.Instance != null ? (MonoBehaviour)GameManager.Instance : this;
 
+    bool roomHidden;
+    bool endingComplete;
+
     public void OnActivate()
     {
         if (!IsCurrentlyInteractable()) return;
         triggered = true;
         hint.Hide();
         CoroutineHost.StartCoroutine(RevealRoutine());
+        // Covers reveal+shake specifically - the one leg of this sequence
+        // with no player-input dependency before the room ever hides (the
+        // one dialogue wait that can precede it, LabState.IntroShown, is
+        // already true by the time Artifact fires in normal sequential
+        // play, since Recorder - step 5 of 6 - sets it first). Deliberately
+        // tighter and separately scoped from FloatWatchdog below, which
+        // only covers the float itself and has no visibility into whether
+        // the room ever hid in the first place.
+        CoroutineHost.StartCoroutine(PreHideWatchdog());
+    }
+
+    IEnumerator PreHideWatchdog()
+    {
+        float deadline = revealDuration + shakeDuration + 10f;
+        yield return new WaitForSecondsRealtime(deadline);
+        if (endingComplete || roomHidden) yield break;
+        Debug.LogWarning("[ArtifactEnding] PreHideWatchdog fired at realtime=" + Time.realtimeSinceStartup + " - room never hid " + deadline + "s after trigger. Forcing completion.");
+        ForceComplete();
     }
 
     IEnumerator RevealRoutine()
@@ -221,6 +242,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // breaths until you trigger the disappearing act, then that's the
         // only part you can hear the breath").
         SetRoomVisible(false);
+        roomHidden = true;
         if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingClosed());
         if (screechAudio != null) screechAudio.Stop();
         if (glitchAudioSource != null) glitchAudioSource.Stop();
@@ -267,6 +289,27 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "Wasn't planning on it.");
 
         yield return new WaitForSeconds(0.6f);
+        if (!endingComplete)
+        {
+            endingComplete = true;
+            InteractionSequencer.Instance?.CompleteStep(StepId);
+            endScreen?.Show();
+        }
+    }
+
+    // Shared recovery path for both watchdogs - skips straight to "back to
+    // normal" rather than trying to resume the interrupted animation
+    // in-place, since whatever state the shake/float left things in at the
+    // point of hanging isn't known to be safe to continue from.
+    void ForceComplete()
+    {
+        if (endingComplete) return;
+        endingComplete = true;
+        SetRoomVisible(true);
+        if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
+        AmbienceManager.Instance?.StopBreathing();
+        AmbienceManager.Instance?.SetMuted(false);
+        ApplyEmission(dimBlue);
         InteractionSequencer.Instance?.CompleteStep(StepId);
         endScreen?.Show();
     }
@@ -376,18 +419,17 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
     IEnumerator FloatWatchdog(float expectedFloatDuration)
     {
-        float deadline = expectedFloatDuration + 15f;
+        // Tightened from +15s to +8s - the original buffer meant a genuinely
+        // stuck player could be waiting close to 30s total before recovery
+        // kicked in, which is a long time to sit wondering if the whole
+        // game is broken.
+        float deadline = expectedFloatDuration + 8f;
         yield return new WaitForSecondsRealtime(deadline);
+        if (endingComplete) yield break;
         if (stationRoot != null && !stationRoot.activeSelf)
         {
-            Debug.LogWarning("[ArtifactEnding] Watchdog fired - station still hidden " + deadline + "s after the float began. Forcing recovery.");
-            SetRoomVisible(true);
-            if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
-            AmbienceManager.Instance?.StopBreathing();
-            AmbienceManager.Instance?.SetMuted(false);
-            ApplyEmission(dimBlue);
-            InteractionSequencer.Instance?.CompleteStep(StepId);
-            endScreen?.Show();
+            Debug.LogWarning("[ArtifactEnding] FloatWatchdog fired at realtime=" + Time.realtimeSinceStartup + " - station still hidden " + deadline + "s after the float began. Forcing recovery.");
+            ForceComplete();
         }
     }
 

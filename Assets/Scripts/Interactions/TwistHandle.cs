@@ -12,6 +12,20 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 // replacement for how desktop testing already works.
 public class TwistHandle : MonoBehaviour
 {
+    // Which InteractionSequencer step this wheel's door belongs to - gates
+    // hover/grab the same way every other interactable gates itself. This
+    // was missing entirely: the wheel is the actual VR-reachable control
+    // (the door panel itself doesn't respond to select in VR - see
+    // DoorInteractable), so onOpened's target (DoorInteractable.OnActivate)
+    // correctly refused to open out of turn, but the WHEEL ITSELF never
+    // checked anything - it would glow, show "GRAB, THEN MOVE IN A CIRCLE",
+    // and physically spin for ANY wheel regardless of whose turn it was.
+    // Confirmed via direct feedback ("it's still saying I can grab and move
+    // the [next] airlock... the terminal needs to make sure we have that
+    // first") - the sequencer gating that looked complete from auditing
+    // DoorInteractable/Terminal/Recorder/Artifact had this one real gap.
+    public string stepId;
+
     // The mesh that actually spins for visual feedback - usually a sibling
     // of this grab point rather than this object itself, since the visual
     // wheel geometry was built unscaled to dodge the door disc's crushed
@@ -142,10 +156,15 @@ public class TwistHandle : MonoBehaviour
         interactable.hoverExited.RemoveListener(OnWheelHoverExit);
     }
 
+    bool IsCurrentlyInteractable()
+    {
+        return InteractionSequencer.Instance == null || string.IsNullOrEmpty(stepId) || InteractionSequencer.Instance.IsCurrentStep(stepId);
+    }
+
     void OnWheelHoverEnter(HoverEnterEventArgs args)
     {
         hovering = true;
-        if (tracking || opened) return;
+        if (tracking || opened || !IsCurrentlyInteractable()) return;
         ApplyGlow(hoverGlowColor);
         ShowHint("GRAB, THEN MOVE IN A CIRCLE");
     }
@@ -167,7 +186,7 @@ public class TwistHandle : MonoBehaviour
 
     void OnGrab(SelectEnterEventArgs args)
     {
-        if (opened) return;
+        if (opened || !IsCurrentlyInteractable()) return;
         lastHandAngle = GetHandAngle(args.interactorObject.transform.position);
         tracking = true;
         currentInteractor = args.interactorObject;

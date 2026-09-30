@@ -21,6 +21,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     public AudioSource glitchAudioSource;
     public AudioClip[] glitchClips;
     [Range(0f, 1f)] public float glitchClipChancePerTick = 0.35f;
+    // Alarm siren, looping for the whole shake - per request ("i want like
+    // an alarm noise to play when the vibrating is happening too kind of
+    // like a siren").
+    public AudioSource sirenAudio;
     public EndScreenController endScreen;
     public Color dimBlue = new Color(0.1f, 0.3f, 0.6f);
     public Color brightWhite = Color.white;
@@ -140,11 +144,27 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     public void OnHoverEnter() { }
     public void OnHoverExit() { }
 
+    // Deadlock fix, confirmed via a real console error: "Coroutine couldn't
+    // be started because the game object 'Artifact' is inactive." The
+    // Artifact GameObject (running this whole sequence) is itself nested
+    // inside Station - the moment the float phase hides Station, it also
+    // deactivates Artifact, which pauses every coroutine running on it,
+    // including the one that's supposed to reactivate it later. A frozen
+    // coroutine can't wake itself back up - the player was stuck in the
+    // silent float forever. GameManager is a persistent root-level object
+    // never hidden by anything here, so running coroutines on it instead
+    // of `this` keeps them ticking regardless of Artifact's own active
+    // state. Used for every StartCoroutine call in this whole sequence,
+    // not just the outer one - the door-swing calls below would hit the
+    // exact same failure the instant they're called while Artifact is
+    // inactive.
+    MonoBehaviour CoroutineHost => GameManager.Instance != null ? (MonoBehaviour)GameManager.Instance : this;
+
     public void OnActivate()
     {
         if (!IsCurrentlyInteractable()) return;
         triggered = true;
-        StartCoroutine(RevealRoutine());
+        CoroutineHost.StartCoroutine(RevealRoutine());
     }
 
     IEnumerator RevealRoutine()
@@ -177,7 +197,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // breaths until you trigger the disappearing act, then that's the
         // only part you can hear the breath").
         SetRoomVisible(false);
-        if (labDoor != null) StartCoroutine(labDoor.SwingClosed());
+        if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingClosed());
         if (screechAudio != null) screechAudio.Stop();
         if (glitchAudioSource != null) glitchAudioSource.Stop();
         AmbienceManager.Instance?.SetMuted(true);
@@ -190,7 +210,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
         // Back to normal.
         SetRoomVisible(true);
-        if (labDoor != null) StartCoroutine(labDoor.SwingOpen());
+        if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
 
         t = 0f;
         Color from = brightWhite;
@@ -214,6 +234,12 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
     IEnumerator ShakeAndFlickerRoutine(float duration)
     {
+        if (sirenAudio != null && sirenAudio.clip != null)
+        {
+            sirenAudio.loop = true;
+            sirenAudio.Play();
+        }
+
         float elapsed = 0f;
         float flickerTimer = 0f;
         while (elapsed < duration)
@@ -252,6 +278,16 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
                         glitchLights[i].intensity = spike
                             ? glitchLightBaseIntensities[i] * Random.Range(1.5f, Mathf.Lerp(2f, 3.2f, buildT))
                             : glitchLightBaseIntensities[i] * Random.Range(0f, 0.15f);
+                        // Alarm-red on the spikes themselves - per request
+                        // ("trigger an alarm siren where like the red
+                        // flashing happens as well with everything else").
+                        // Only the spike frames go red so it still reads as
+                        // flicker/strobe, not a flat red wash the whole time;
+                        // buildT pushes it toward fully saturated red as the
+                        // climax approaches, same climb as the intensity.
+                        glitchLights[i].color = spike
+                            ? Color.Lerp(glitchLightBaseColors[i], Color.red, Mathf.Lerp(0.5f, 1f, buildT))
+                            : glitchLightBaseColors[i];
                     }
                 }
                 if (glitchAudioSource != null && glitchClips != null && glitchClips.Length > 0
@@ -263,6 +299,8 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             }
             yield return null;
         }
+
+        if (sirenAudio != null) sirenAudio.Stop();
 
         // Restore exact original positions/light state - a ramping random
         // jitter never lands back on zero on its own.

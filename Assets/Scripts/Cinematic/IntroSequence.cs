@@ -173,6 +173,16 @@ public class IntroSequence : MonoBehaviour
         if (FadeController.Instance != null)
             yield return FadeController.Instance.FadeFromBlack(fadeInTime);
 
+        // Per direct feedback ("no indicator for what I'm supposed to
+        // interact with... no guidance at all") - the idle pulse glow
+        // alone wasn't enough for a first-time player to even know there
+        // was a glow to look for. One explicit, one-time line up front
+        // covering both what (the gold glow) and how (point + trigger)
+        // beats scattering assumed-obvious visual cues across six
+        // different objects with no shared explanation.
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Anything glowing gold is something you can interact with. Point your controller at it and pull the trigger.");
+
         GameManager.Instance?.MarkStoryStarted();
     }
 

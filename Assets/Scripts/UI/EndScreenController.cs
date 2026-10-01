@@ -1,14 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 public class EndScreenController : MonoBehaviour
 {
     public CanvasGroup canvasGroup;
     public Button restartButton;
-    public Button quitButton;
 
     void Awake()
     {
@@ -19,7 +15,7 @@ public class EndScreenController : MonoBehaviour
         // completed, before there was clear evidence either button was
         // ever actually pressed). Tagged [EndScreen], visible via
         // adb logcat.
-        Debug.Log("[EndScreen] Awake - canvasGroup=" + (canvasGroup != null) + " restartButton=" + (restartButton != null) + " quitButton=" + (quitButton != null));
+        Debug.Log("[EndScreen] Awake - canvasGroup=" + (canvasGroup != null) + " restartButton=" + (restartButton != null));
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0f;
@@ -27,7 +23,6 @@ public class EndScreenController : MonoBehaviour
             canvasGroup.interactable = false;
         }
         if (restartButton != null) restartButton.onClick.AddListener(OnRestart);
-        if (quitButton != null) quitButton.onClick.AddListener(OnQuit);
     }
 
     public void Show()
@@ -50,15 +45,5 @@ public class EndScreenController : MonoBehaviour
         LabState.IntroShown = false;
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
-    }
-
-    void OnQuit()
-    {
-        Debug.Log("[EndScreen] OnQuit clicked at realtime=" + Time.realtimeSinceStartup);
-#if UNITY_EDITOR
-        EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
     }
 }

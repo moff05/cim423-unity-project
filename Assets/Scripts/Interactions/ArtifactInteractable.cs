@@ -241,6 +241,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // plays only for this one beat, per direct feedback ("mute the
         // breaths until you trigger the disappearing act, then that's the
         // only part you can hear the breath").
+        FreezePlayer();
         SetRoomVisible(false);
         roomHidden = true;
         if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingClosed());
@@ -270,6 +271,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
         // Back to normal.
         SetRoomVisible(true);
+        RestorePlayer();
         // Camera pose logged here specifically to test a theory from
         // direct feedback ("didn't see the station reappear before the
         // dialogue triggers") - the float has no visual anchor, so the
@@ -307,8 +309,93 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         {
             endingComplete = true;
             InteractionSequencer.Instance?.CompleteStep(StepId);
+            DisableBlockingColliders();
             endScreen?.Show();
         }
+    }
+
+    // Real bug, confirmed against the XR Interaction Toolkit source
+    // (NearFarInteractor.cs ProcessInteractor -> shouldProcess2dHit): the
+    // far-ray interactor picks whichever hit is closer, UI or 3D physics,
+    // and drops the UI hit entirely if a collider is nearer - it doesn't
+    // just prefer UI. EndScreenCanvas snaps to 1.6m in front of the camera
+    // (WorldSpaceUIFollow), but SetRoomVisible(true) re-activates the whole
+    // Station right before the end screen shows, putting every room
+    // collider back in play - and the player is standing in the middle of
+    // it. First pass only disabled the Pedestal + this object's own
+    // collider, which turned out not to be enough: `pedestal` is unset in
+    // the Inspector (confirmed via get_serialized_fields - pedestalPos
+    // logs null every time), and the actual object that's always in view
+    // is whatever's under Station, not a specific named field - wallsToHide
+    // alone lists 44 objects (Floor, Ceiling, every wall, Desk, Chair,
+    // Shelves, the real Pedestal, Recorder, 20+ clutter pieces). Any one of
+    // those can be the collider that's closer than the canvas depending on
+    // where the player ends up standing - there's no single fixed culprit
+    // to name. Disabling colliders across stationRoot + wallsToHide +
+    // otherObjectsToHide covers the entire reactivated room in one pass
+    // instead of guessing at individual objects again. Safe: nothing in
+    // the room needs to be physically interactable once the ending has
+    // actually completed, and Restart reloads the whole scene fresh
+    // anyway, so these come back enabled on replay.
+    // Root cause of "station never comes back" / "restart does nothing":
+    // hiding Station removes the floor, the XR rig's GravityProvider keeps
+    // applying gravity for the whole float (~12s = ~700m of free fall,
+    // confirmed from device logs: camPos y=-669 when the room reactivated),
+    // so the player is hundreds of metres under the station and the end
+    // screen canvas (which only repositions on a >30deg turn) is left
+    // behind. Freeze gravity + locomotion for the float and put the rig
+    // back exactly where it was.
+    Transform frozenRig;
+    Vector3 frozenPos;
+    Quaternion frozenRot;
+    Behaviour[] frozenProviders;
+
+    void FreezePlayer()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+        frozenRig = cam.transform.root;
+        frozenPos = frozenRig.position;
+        frozenRot = frozenRig.rotation;
+        var list = new System.Collections.Generic.List<Behaviour>();
+        foreach (var p in frozenRig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionProvider>(true))
+            if (p.enabled) { p.enabled = false; list.Add(p); }
+        frozenProviders = list.ToArray();
+    }
+
+    void RestorePlayer()
+    {
+        if (frozenRig == null) return;
+        var cc = frozenRig.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        frozenRig.SetPositionAndRotation(frozenPos, frozenRot);
+        if (cc != null) cc.enabled = true;
+        if (frozenProviders != null)
+            foreach (var p in frozenProviders) if (p != null) p.enabled = true;
+        Debug.Log("[ArtifactEnding] player restored to " + frozenPos);
+        frozenRig = null;
+    }
+
+    void DisableBlockingColliders()
+    {
+        // The floor is one of the colliders disabled below, so stop gravity
+        // and locomotion first or the player free-falls forever (confirmed
+        // on device). Restart reloads the scene, which resets the rig.
+        var cam = Camera.main;
+        if (cam != null)
+            foreach (var p in cam.transform.root.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionProvider>(true))
+                p.enabled = false;
+        int count = 0;
+        void DisableAll(GameObject go)
+        {
+            if (go == null) return;
+            foreach (var col in go.GetComponentsInChildren<Collider>(true)) { col.enabled = false; count++; }
+        }
+        DisableAll(stationRoot);
+        DisableAll(gameObject);
+        if (wallsToHide != null) foreach (var w in wallsToHide) DisableAll(w);
+        if (otherObjectsToHide != null) foreach (var o in otherObjectsToHide) DisableAll(o);
+        Debug.Log("[EndScreen] Disabled " + count + " room colliders ahead of Show() to stop them blocking the far-ray UI hit");
     }
 
     // Shared recovery path for both watchdogs - skips straight to "back to
@@ -320,11 +407,13 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         if (endingComplete) return;
         endingComplete = true;
         SetRoomVisible(true);
+        RestorePlayer();
         if (labDoor != null) CoroutineHost.StartCoroutine(labDoor.SwingOpen());
         AmbienceManager.Instance?.StopBreathing();
         AmbienceManager.Instance?.SetMuted(false);
         ApplyEmission(dimBlue);
         InteractionSequencer.Instance?.CompleteStep(StepId);
+        DisableBlockingColliders();
         endScreen?.Show();
     }
 

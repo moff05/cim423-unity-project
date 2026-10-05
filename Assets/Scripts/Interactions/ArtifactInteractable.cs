@@ -300,7 +300,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         ApplyEmission(dimBlue);
 
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "{PlayerName}. Whatever that was, whatever they were, it's done now. Don't touch it again.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "{PlayerName}. Whatever that was, it's done now. Don't touch it again.");
         if (DialogueUI.Instance != null)
             yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "Wasn't planning on it.");
 

@@ -1,6 +1,6 @@
-# CIM 423: Derelict Station (Unity VR)
+# CIM 423: Day 181 (Unity Virtual Reality)
 
-A short VR horror story set on an abandoned space station, built for CIM 423 at the University of Miami. You dock with a silent station, work through its doors, read the crew's last journal entry, and trigger the artifact that ended them.
+A short virtual reality horror story set on an abandoned space station, built for CIM 423 at the University of Miami. You dock with a silent station, work through its doors, read the crew's last journal entry, and trigger the artifact that ended them.
 
 - **Build log / writeup:** https://cim423-3d-world.vercel.app
 - **Platform:** Meta Quest (OpenXR), with a desktop point-and-click mode for testing in the Editor

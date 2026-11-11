@@ -226,7 +226,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
 
         // ECHO has been steering the player here the whole run.
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Go on, {PlayerName}. This is what we came for.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "That is what they were testing. Go on, {PlayerName}. This is what we came for.");
         if (StoryState.Informed && DialogueUI.Instance != null)
             yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "We?");
 

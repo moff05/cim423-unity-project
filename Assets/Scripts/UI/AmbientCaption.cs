@@ -39,21 +39,36 @@ public class AmbientCaption : MonoBehaviour
         follow.repositionAngle = 30f;
         follow.distanceTolerance = 0.5f;
 
+        // Dark plate behind the words so they read against bright walls.
+        var plateGO = new GameObject("CaptionPlate");
+        plateGO.transform.SetParent(canvasGO.transform, false);
+        var plate = plateGO.AddComponent<UnityEngine.UI.Image>();
+        plate.color = new Color(0f, 0.03f, 0.05f, 0.72f);
+        plate.raycastTarget = false;
+        var plateRT = plateGO.GetComponent<RectTransform>();
+        plateRT.anchorMin = new Vector2(0.02f, 0.18f);
+        plateRT.anchorMax = new Vector2(0.98f, 0.5f);
+        plateRT.offsetMin = Vector2.zero;
+        plateRT.offsetMax = Vector2.zero;
+
         var textGO = new GameObject("CaptionText");
         textGO.transform.SetParent(canvasGO.transform, false);
         text = textGO.AddComponent<TextMeshProUGUI>();
-        text.alignment = TextAlignmentOptions.Bottom;
-        text.fontSize = 32f;
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = 28f;
+        text.fontSizeMax = 40f;
         text.color = new Color(0.86f, 0.93f, 1f);
         text.fontStyle = FontStyles.Italic;
         text.outlineWidth = 0.2f;
         text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         text.text = "";
+        V2Text.MakeOverlay(text);
         // Pinned to the bottom of a tall canvas: below the eyeline, above the
         // dialogue bar.
         var textRT = textGO.GetComponent<RectTransform>();
-        textRT.anchorMin = new Vector2(0f, 0.2f);
-        textRT.anchorMax = new Vector2(1f, 0.5f);
+        textRT.anchorMin = new Vector2(0.05f, 0.2f);
+        textRT.anchorMax = new Vector2(0.95f, 0.48f);
         textRT.offsetMin = Vector2.zero;
         textRT.offsetMax = Vector2.zero;
     }

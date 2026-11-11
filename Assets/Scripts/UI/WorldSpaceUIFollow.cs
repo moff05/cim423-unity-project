@@ -48,6 +48,8 @@ public class WorldSpaceUIFollow : MonoBehaviour
     // front of the player).
     public float distanceTolerance = 0.5f;
 
+    float currentDistance;
+
     void LateUpdate()
     {
         var cam = Camera.main;
@@ -69,15 +71,22 @@ public class WorldSpaceUIFollow : MonoBehaviour
 
         Vector3 toPanel = transform.position - cam.transform.position;
         bool angledAway = toPanel.sqrMagnitude < 0.0001f || Vector3.Angle(cam.transform.forward, toPanel) > repositionAngle;
-        bool wrongDistance = Mathf.Abs(toPanel.magnitude - distance) > distanceTolerance;
-        if (angledAway || wrongDistance)
+        bool wrongDistance = Mathf.Abs(toPanel.magnitude - currentDistance) > distanceTolerance;
+        // A wall has come between the player and the panel (they walked
+        // toward it): pull the panel back in front of the wall.
+        bool buried = Physics.Raycast(cam.transform.position, toPanel.normalized, toPanel.magnitude - 0.05f, ~0, QueryTriggerInteraction.Ignore);
+        if (angledAway || wrongDistance || buried)
             Snap(cam);
     }
 
     void Snap(Camera cam)
     {
+        // Never place the panel inside or behind a wall.
+        currentDistance = distance;
+        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out var hit, distance + 0.15f, ~0, QueryTriggerInteraction.Ignore))
+            currentDistance = Mathf.Max(0.6f, hit.distance - 0.15f);
         transform.SetPositionAndRotation(
-            cam.transform.position + cam.transform.forward * distance,
+            cam.transform.position + cam.transform.forward * currentDistance,
             cam.transform.rotation);
     }
 }

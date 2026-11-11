@@ -13,7 +13,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
     public TMP_Text infoBodyText;
     [TextArea]
     public string journalEntry =
-        "DR. OKAFOR, JOURNAL, DAY 180\n\"Resonance from the artifact is climbing again. The Director wants a full-power test tomorrow, with all five of us in the room. I've logged my objection.\"\n\nLAB DOOR: REMOTE LOCK HELD BY THE CREW-BAND RELAY (CREW QUARTERS). TUNE THE RELAY TO THE DOOR BAND TO RELEASE.";
+        "DR. ELLIS, JOURNAL, MISSION DAY 180\n\"Resonance from the artifact is climbing again. The Director wants a full-power test tomorrow, with all five of us in the room. I've logged my objection.\"\n\nTHERE IS NO ENTRY FOR DAY 181.\n\nLAB DOOR: LOCKED FROM THE RADIO PANEL IN CREW QUARTERS.";
 
     public float idlePulseSpeed = 1.6f;
     public float idlePulseMin = 0.15f;
@@ -94,7 +94,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
         if (DialogueUI.Instance != null)
             yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "There. Terminal's live. Let's see who we're salvaging from.");
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Crew roster says five, {PlayerName}. Halvorsen, Okafor, Reyes, Lindqvist, Tanaka. The automatic activity log stops on the same day for all five. Not staggered. Same minute.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Crew roster says five, {PlayerName}. Marsh, Ellis, Cole, Park, Vega. The automatic activity log stops for all five on the same day, mission Day 181. Not staggered. Same minute. That was six months ago.");
 
         if (infoBodyText != null) infoBodyText.text = journalEntry;
         if (infoPanel != null)
@@ -117,7 +117,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
         }
 
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Standard evacuation, most likely. The lab is locked off a relay in crew quarters, back off the corridor. That door has power now. Go tune it.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Standard evacuation, most likely. Whatever they were testing is in the lab, and the lab is locked from a radio panel in crew quarters. That's the side door halfway back down the corridor. It has power now. Follow the marker.");
 
         InteractionSequencer.Instance?.CompleteStep(StepId);
     }

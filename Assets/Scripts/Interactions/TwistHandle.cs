@@ -109,6 +109,7 @@ public class TwistHandle : MonoBehaviour
         hintText.enableWordWrapping = false;
         hintText.outlineWidth = 0.2f;
         hintText.outlineColor = Color.black;
+        V2Text.MakeOverlay(hintText);
         go.SetActive(false);
     }
 

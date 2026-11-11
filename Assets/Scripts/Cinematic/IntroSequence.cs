@@ -128,7 +128,7 @@ public class IntroSequence : MonoBehaviour
             // reads like a deliberate cinematic beat instead of racing a
             // timer - the flight itself only starts once dismissed.
             if (DialogueUI.Instance != null)
-                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Departing, {PlayerName}. Salvage claim is uncontested: the station went silent a hundred and eighty-one days ago and nobody came looking. Punching the jump drive in three.");
+                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Departing, {PlayerName}. Our target is a research station that went silent six months ago. Five crew, nobody came looking. The last thing it logged was Day 181 of its mission. We strip it for parts. Jumping in three.");
 
             // Phase 1: depart the local area.
             yield return LerpPosition(rigTransform, departStartPosition, departEndPosition, departDuration);
@@ -149,7 +149,7 @@ public class IntroSequence : MonoBehaviour
             if (jumpAudio != null && jumpAudio.isPlaying) StartCoroutine(FadeOutAudio(jumpAudio, 0.6f));
 
             if (DialogueUI.Instance != null)
-                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Jump complete. Bringing us in to dock.");
+                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Jump complete. There she is. Bringing us in to dock.");
 
             // Phase 3: final approach to the station.
             yield return LerpPosition(rigTransform, postJumpPosition, flightEndPosition, approachDuration);

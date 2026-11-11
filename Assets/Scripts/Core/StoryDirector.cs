@@ -39,7 +39,7 @@ public class StoryDirector : MonoBehaviour
         { "powercell", "Grab the glowing cell from the rack by the Engineering door and carry it to the socket on the reactor." },
         { "breaker", "The breaker is the lever on the far wall of Engineering. Grab it and pull down." },
         { "terminal", "The terminal is on the desk in the control room. Point at it and pull the trigger." },
-        { "radio", "Crew quarters is the side door halfway down the corridor. Grab the big dial on the far wall and circle your hand until it says DOOR BAND, then hold still." },
+        { "radio", "Crew quarters is the side door halfway down the corridor. Point at the big dial on the far wall and hold the trigger until it unlocks the lab." },
         { "labdoor", "The lab door is at the far end of the control room. Grab the wheel and turn it." },
         { "recorder", "There's a recorder on the lab desk. Point at it and pull the trigger." },
         { "artifact", "Your call, {PlayerName}. Touch it, or pull the lever by the lab door." },
@@ -172,7 +172,7 @@ public class StoryDirector : MonoBehaviour
         yield return new WaitForSeconds(1.6f);
 
         if (controlRoomPoint != null) V2Audio.PlayAt("PA_Day181", controlRoomPoint.position, 1f, 45f);
-        AmbientCaption.Say("STATION PA", "\"Power restored. Resuming scheduled operation. Day one eight one. Full-power test: standing by.\"", 8f);
+        AmbientCaption.Say("STATION PA", "\"Power restored. Resuming scheduled operation. Mission day one eight one. Full-power test: standing by.\"", 8f);
         yield return new WaitForSeconds(5f);
 
         // Somewhere behind the player a door that had no power finally opens.
@@ -180,7 +180,7 @@ public class StoryDirector : MonoBehaviour
         yield return new WaitForSeconds(3.5f);
 
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Ignore that. Automated loop, six months stale. The terminal should be live now. Back to the control room.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Ignore that. The station thinks it is still the day it shut down. The terminal has power now. Back to the control room, follow the marker.");
         InteractionSequencer.Instance?.CompleteStep("breaker");
         busy--;
     }
@@ -213,7 +213,7 @@ public class StoryDirector : MonoBehaviour
         if (labDoorPoint != null) V2Audio.PlayAt("LockRelease", labDoorPoint.position, 1f, 45f);
         yield return new WaitForSeconds(1.6f);
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "That's the lab lock released. The other signal on that band is residue. Old recordings bleeding through. Not live.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Lab door is unlocked. Those voices were old recordings bleeding through. Nobody is transmitting, {PlayerName}.");
 
         // Quiet lead-in, then the lights go.
         yield return new WaitForSeconds(1.2f);
@@ -224,7 +224,7 @@ public class StoryDirector : MonoBehaviour
         SetEmission(monitorRenderer, Color.black);
         yield return new WaitForSeconds(2f);
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Bus fluctuation. Your suit lamp's on. The lab door is at the far end of the control room. It's nothing, {PlayerName}.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Something in the lab just drank the whole power bus. Lights are gone, your suit lamp is on. The lab door is at the far end of the control room. Follow the marker. It's nothing.");
         InteractionSequencer.Instance?.CompleteStep("radio");
         busy--;
         StartCoroutine(BlackoutBeats());

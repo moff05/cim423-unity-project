@@ -30,6 +30,7 @@ public class FloatingHintText : MonoBehaviour
         hint.text.outlineWidth = 0.2f;
         hint.text.outlineColor = Color.black;
 
+        V2Text.MakeOverlay(hint.text);
         go.SetActive(false);
         return hint;
     }

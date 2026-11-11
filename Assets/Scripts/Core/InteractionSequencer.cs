@@ -53,7 +53,7 @@ public class InteractionSequencer : MonoBehaviour
         { "powercell", "Carry a power cell to the reactor" },
         { "breaker", "Pull the main bus breaker" },
         { "terminal", "Check the terminal in the control room" },
-        { "radio", "Tune the relay in crew quarters" },
+        { "radio", "Unlock the lab from the radio panel in crew quarters" },
         { "labdoor", "Open the lab door" },
         { "recorder", "Play the recorder" },
         { "artifact", "Touch the artifact, or pull the containment seal" },

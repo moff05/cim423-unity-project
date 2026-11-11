@@ -2,11 +2,12 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
-// A scanning dial: grab it and move your hand in a circle (same gesture as
-// the door wheels) to sweep the band. The sweep only ever runs forward and
-// wraps around, so it cannot be left in a dead position. Partway round it
-// passes a band with voices on it; further on is the lab door's band, where
-// holding still locks it in.
+// The lab door's remote lock: point at the dial and hold the trigger. It
+// scans by itself, passes a band with voices on it, then finds the door's
+// signal and unlocks. The first version made the player circle their hand to
+// tune it; on the headset nobody could tell what they were meant to do, the
+// text was too close to read while doing it, and it was uncomfortable. Now
+// the only instruction is "hold".
 public class TuneDial : HoldInteractable
 {
     public Transform knob;
@@ -14,20 +15,14 @@ public class TuneDial : HoldInteractable
     public TextMeshPro readout;
     public AudioSource staticSource;
     public AudioSource voiceSource;
-    // Degrees of hand travel for one full sweep of the band.
-    public float sweepAngle = 420f;
-    [Range(0f, 1f)] public float voiceBand = 0.42f;
-    [Range(0f, 1f)] public float targetBand = 0.8f;
-    public float bandWidth = 0.07f;
-    public float lockSeconds = 1.1f;
+    // Seconds of holding, not counting the pause on the voices.
+    public float scanSeconds = 6f;
+    public float voiceSeconds = 3.5f;
+    [Range(0f, 1f)] public float voiceBand = 0.45f;
 
-    float value = 0.06f;
-    float lastHandAngle;
-    float lockTimer;
-    float knobAngle;
+    float value;
+    float voiceTimer;
     Quaternion knobBase;
-    Vector3 referenceDir;
-    bool referenceCached;
     bool voicesCaptioned;
     float lastTick;
 
@@ -38,104 +33,73 @@ public class TuneDial : HoldInteractable
         UpdateReadout(false);
     }
 
-    float Closeness(float band) => Mathf.Clamp01(1f - Mathf.Abs(value - band) / bandWidth);
-
     protected override void OnHoldStart(Vector3 handPos)
     {
-        lastHandAngle = HandAngle(handPos);
         if (staticSource != null && !staticSource.isPlaying) { staticSource.loop = true; staticSource.Play(); }
         if (voiceSource != null && !voiceSource.isPlaying) { voiceSource.loop = true; voiceSource.volume = 0f; voiceSource.Play(); }
     }
 
     protected override void OnHold(Vector3 handPos)
     {
-        float angle = HandAngle(handPos);
-        float delta = Mathf.Abs(Mathf.DeltaAngle(lastHandAngle, angle));
-        lastHandAngle = angle;
-        // Ignore tracking jitter so a still hand really reads as still.
-        if (delta < 0.35f) delta = 0f;
-        Step(delta, Time.deltaTime);
+        Step(Time.deltaTime);
     }
 
-    // Advance the sweep by `degrees` of hand travel.
-    void Step(float degrees, float dt)
+    void Step(float dt)
     {
-        float voice = Closeness(voiceBand);
-        float target = Closeness(targetBand);
-        // The sweep drags through the two interesting bands so they are hard
-        // to skate past.
-        float rate = Mathf.Lerp(1f, 0.3f, Mathf.Max(voice, target));
-        value = Mathf.Repeat(value + degrees / sweepAngle * rate, 1f);
-        knobAngle += degrees;
-        if (knob != null) knob.localRotation = knobBase * Quaternion.AngleAxis(knobAngle, Vector3.up);
-        if (knobAngle - lastTick >= 25f) { lastTick = knobAngle; Tick(0.15f, 0.03f); }
-
-        voice = Closeness(voiceBand);
-        target = Closeness(targetBand);
-        if (staticSource != null) staticSource.volume = 0.3f * (1f - Mathf.Max(voice, target * 0.8f));
-        if (voiceSource != null) voiceSource.volume = voice * 0.9f;
-
-        if (voice > 0.5f && !voicesCaptioned)
+        bool onVoices = value >= voiceBand && voiceTimer < voiceSeconds;
+        if (onVoices)
         {
-            voicesCaptioned = true;
-            StoryState.HeardVoices = true;
-            AmbientCaption.Say("CREW BAND", "\"...we're still here... is someone there?... don't run the test...\"", 6f);
+            voiceTimer += dt;
+            if (!voicesCaptioned)
+            {
+                voicesCaptioned = true;
+                StoryState.HeardVoices = true;
+                AmbientCaption.Say("VOICES ON THE RADIO", "\"...we're still here... is someone there?... don't run the test...\"", 5f);
+            }
+        }
+        else
+        {
+            value = Mathf.Min(1f, value + dt / scanSeconds);
+            if (knob != null) knob.localRotation = knobBase * Quaternion.AngleAxis(value * 540f, Vector3.up);
+            if (value - lastTick >= 0.06f) { lastTick = value; Tick(0.15f, 0.03f); }
         }
 
-        bool inTarget = target > 0.35f;
-        if (inTarget && degrees <= 0f) lockTimer += dt; else if (!inTarget) lockTimer = 0f;
-        UpdateReadout(inTarget);
-        hint.Show(inTarget ? "DOOR BAND: HOLD STILL" : voice > 0.3f ? "...VOICES?" : holdHint);
+        if (staticSource != null) staticSource.volume = onVoices ? 0.08f : 0.45f;
+        if (voiceSource != null) voiceSource.volume = Mathf.MoveTowards(voiceSource.volume, onVoices ? 1f : 0f, dt * 2f);
+        UpdateReadout(onVoices);
+        hint.Show(onVoices ? "KEEP HOLDING" : "KEEP HOLDING  " + Mathf.RoundToInt(value * 100f) + "%");
 
-        if (lockTimer >= lockSeconds)
+        if (value >= 1f)
         {
             if (staticSource != null) staticSource.Stop();
             if (voiceSource != null) voiceSource.Stop();
-            if (readout != null) readout.text = "<color=#7CFF8A>LOCKED\nLAB DOOR RELEASED</color>";
+            if (readout != null) readout.text = "<color=#7CFF8A>DOOR SIGNAL FOUND\nLAB DOOR UNLOCKED</color>";
             Complete();
         }
     }
 
     protected override void OnHoldEnd()
     {
-        lockTimer = 0f;
-        if (staticSource != null) staticSource.volume *= 0.5f;
+        if (staticSource != null) staticSource.volume = 0.1f;
+        if (voiceSource != null) voiceSource.volume = 0f;
     }
 
-    void UpdateReadout(bool inTarget)
+    void UpdateReadout(bool onVoices)
     {
         if (readout == null) return;
-        float khz = 140f + value * 60f;
-        string status = inTarget ? "<color=#FFD24A>DOOR BAND</color>" : Closeness(voiceBand) > 0.3f ? "<color=#FF7A6A>UNLISTED SIGNAL</color>" : "SCANNING";
-        readout.text = khz.ToString("0.0") + " kHz\n" + status;
-    }
-
-    float HandAngle(Vector3 worldHandPos)
-    {
-        Vector3 axis = transform.TransformDirection(localSpinAxis).normalized;
-        if (!referenceCached)
-        {
-            referenceDir = Vector3.ProjectOnPlane(Vector3.up, axis);
-            if (referenceDir.sqrMagnitude < 0.0001f) referenceDir = Vector3.ProjectOnPlane(Vector3.right, axis);
-            referenceCached = true;
-        }
-        Vector3 toHand = Vector3.ProjectOnPlane(worldHandPos - transform.position, axis);
-        return Vector3.SignedAngle(referenceDir, toHand, axis);
+        int filled = Mathf.RoundToInt(value * 12f);
+        string bar = new string('|', filled) + "<color=#33555F>" + new string('|', 12 - filled) + "</color>";
+        string status = onVoices ? "<color=#FF7A6A>UNKNOWN SIGNAL: VOICES</color>" : value > 0f ? "SCANNING FOR DOOR SIGNAL" : "HOLD THE DIAL TO SCAN";
+        readout.text = status + "\n" + bar;
     }
 
     protected override IEnumerator DesktopRoutine()
     {
         auto = true;
-        OnHoldStart(transform.position + Vector3.up);
-        // Sweep up to the door band, lingering wherever the dial drags.
-        while (Closeness(targetBand) < 0.9f)
-        {
-            Step(140f * Time.deltaTime, Time.deltaTime);
-            yield return null;
-        }
+        OnHoldStart(transform.position);
         while (!done)
         {
-            Step(0f, Time.deltaTime);
+            Step(Time.deltaTime);
             yield return null;
         }
     }

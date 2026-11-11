@@ -37,7 +37,7 @@ public class EndScreenController : MonoBehaviour
         {
             case EndingKind.Day181:
                 title = "DAY 181";
-                body = "Day 181 never ended. Five people are still inside it, and for twelve seconds, so were you. ECHO has not stopped listening.";
+                body = "For the five crew, mission Day 181 never ended. They are still inside it, and for twelve seconds, so were you. ECHO has not stopped listening.";
                 break;
             case EndingKind.Sealed:
                 title = "STATION SEALED";
@@ -47,7 +47,7 @@ public class EndScreenController : MonoBehaviour
                 break;
             default:
                 title = "COORDINATES LOGGED";
-                body = "You logged the station for recovery and left. Whatever happened on Day 181, you never found out. The crew left more behind than you read.";
+                body = "You logged the station for recovery and left. Whatever happened to the crew on Day 181, you never found out. They left more behind than you read.";
                 break;
         }
         body += "\n\n<color=#59D9FF>CREW LOGS RECOVERED  " + StoryState.LogsFound + " / " + StoryState.TotalLogs + "</color>";

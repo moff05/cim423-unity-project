@@ -21,6 +21,7 @@ public static class V2Bootstrap
         new GameObject("ObjectiveHUD").AddComponent<ObjectiveHUD>();
         new GameObject("AmbientCaption").AddComponent<AmbientCaption>();
         new GameObject("LightingDirector").AddComponent<LightingDirector>();
+        new GameObject("WaypointMarker").AddComponent<WaypointMarker>();
         ComfortSettings.Apply();
     }
 }

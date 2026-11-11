@@ -56,19 +56,22 @@ public class DialogueUI : MonoBehaviour
 
         if (speakerText != null) speakerText.text = speaker;
         if (bodyText != null) bodyText.text = text;
-        yield return Fade(1f, 0.3f);
+        V2Audio.Play2D("CommBlip", 0.55f);
+        yield return Fade(1f, 0.2f);
 
         // Input is ignored for a minimum read time (scaled by length) so the
         // click that triggered this line, or a fast double-click, can't
         // skip it before it can be read.
-        yield return new WaitForSeconds(Mathf.Clamp(text.Length * 0.03f, 1.2f, 4f));
+        // Long enough that a stray double-click cannot skip a line, short
+        // enough that waiting for the prompt does not drag (headset feedback).
+        yield return new WaitForSeconds(Mathf.Clamp(text.Length * 0.008f, 0.5f, 1.3f));
         if (continuePrompt != null) continuePrompt.SetActive(true);
 
         while (!AdvanceInput.WasPressedThisFrame())
             yield return null;
 
         if (continuePrompt != null) continuePrompt.SetActive(false);
-        yield return Fade(0f, 0.5f);
+        yield return Fade(0f, 0.25f);
         showing = false;
     }
 

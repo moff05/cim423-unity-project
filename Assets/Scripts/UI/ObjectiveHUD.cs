@@ -56,7 +56,10 @@ public class ObjectiveHUD : MonoBehaviour
         textGO.transform.SetParent(canvasGO.transform, false);
         text = textGO.AddComponent<TextMeshProUGUI>();
         text.alignment = TextAlignmentOptions.Top;
-        text.fontSize = 34f;
+        text.fontSize = 44f;
+        text.outlineWidth = 0.25f;
+        text.outlineColor = Color.black;
+        V2Text.MakeOverlay(text);
         text.color = new Color(1f, 0.85f, 0.3f);
         text.text = "";
         var textRT = textGO.GetComponent<RectTransform>();

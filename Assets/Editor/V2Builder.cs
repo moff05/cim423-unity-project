@@ -337,8 +337,8 @@ public static class V2Builder
         Box("Backing", relay, new Vector3(-7.46f, 1.35f, 13f), new Vector3(0.08f, 0.8f, 1.0f), mMetal);
         Box("Frame", relay, new Vector3(-7.47f, 1.35f, 13f), new Vector3(0.06f, 0.9f, 1.1f), mHazard, false);
         Box("Speaker", relay, new Vector3(-7.41f, 1.3f, 13.28f), new Vector3(0.02f, 0.3f, 0.3f), mDoor, false);
-        var readout = Sign("Readout", relay, new Vector3(-7.405f, 1.62f, 13f), Vector3.left, "140.0 kHz\nSCANNING", 30f, new Color(0.5f, 1f, 0.75f));
-        Sign("Sign_Relay", relay, new Vector3(-7.49f, 2.0f, 13f), Vector3.left, "CREW BAND RELAY", 44f, new Color(0.75f, 0.85f, 0.95f));
+        var readout = Sign("Readout", relay, new Vector3(-7.405f, 1.95f, 13f), Vector3.left, "HOLD THE DIAL TO SCAN", 40f, new Color(0.5f, 1f, 0.75f));
+        Sign("Sign_Relay", relay, new Vector3(-7.49f, 2.4f, 13f), Vector3.left, "LAB DOOR REMOTE LOCK", 50f, new Color(0.75f, 0.85f, 0.95f));
 
         var dial = Grab<TuneDial>("RelayDial", relay, new Vector3(-7.36f, 1.25f, 12.82f), new Vector3(0.2f, 0.45f, 0.45f));
         var knob = Prim(PrimitiveType.Cylinder, "Knob", dial.transform, new Vector3(-7.38f, 1.25f, 12.82f), new Vector3(0.32f, 0.035f, 0.32f), mInteract, false, new Vector3(0f, 0f, 90f));
@@ -351,8 +351,8 @@ public static class V2Builder
         dial.localSpinAxis = Vector3.right;
         dial.readout = readout;
         dial.glowRenderers = new[] { knob.GetComponent<Renderer>() };
-        dial.hoverHint = "GRAB, THEN MOVE IN A CIRCLE";
-        dial.holdHint = "KEEP CIRCLING TO SCAN";
+        dial.hoverHint = "HOLD THE TRIGGER TO UNLOCK THE LAB";
+        dial.holdHint = "KEEP HOLDING";
         dial.hintHeight = 0.55f;
         dial.staticSource = Source(dial.gameObject, "RadioStatic", 9f);
         dial.voiceSource = Source(dial.gameObject, "RadioVoices", 9f);
@@ -533,18 +533,18 @@ public static class V2Builder
     static void BuildLogs()
     {
         var g = Group("CrewLogs", root, Vector3.zero);
-        Log(g, "tanaka", new Vector3(-1.05f, 0.66f, 5.2f), 25f, "TANAKA, PILOT. DAY 176",
+        Log(g, "vega", new Vector3(-1.05f, 0.66f, 5.2f), 25f, "VEGA, PILOT. MISSION DAY 176",
             "\"Both shuttles are still clamped and they're staying that way. The Director has grounded every departure until after the test. Says nobody leaves before we hear it answer.\"");
-        Log(g, "okafor", new Vector3(-1.38f, 0.78f, 19.42f), -15f, "DR. OKAFOR, PHYSICIST. DAY 179",
+        Log(g, "ellis", new Vector3(-1.38f, 0.78f, 19.42f), -15f, "DR. ELLIS, PHYSICIST. MISSION DAY 179",
             "\"It isn't emitting. It's replying. Every pulse we send comes back changed, with our own voices folded into it. Words we haven't said yet.\"",
             "\"It responds to attention. The more of us in the room, the stronger it gets. He wants all five.\"");
-        Log(g, "reyes", new Vector3(8.4f, 0.62f, 23.1f), 160f, "REYES, ENGINEER. DAY 180",
+        Log(g, "cole", new Vector3(8.4f, 0.62f, 23.1f), 160f, "COLE, ENGINEER. MISSION DAY 180",
             "\"He had me wire the main bus straight into the lab. So I pulled the reactor cell and hid it on the rack with the dead ones. No cell, no test.\"",
             "\"If you're reading this and the lights are on, somebody put it back. Pull the breaker. Seal the lab. Don't let it finish.\"");
-        Log(g, "lindqvist", new Vector3(-3.6f, 0.78f, 15.35f), 10f, "LINDQVIST, MEDIC. DAY 178",
+        Log(g, "park", new Vector3(-3.6f, 0.78f, 15.35f), 10f, "PARK, MEDIC. MISSION DAY 178",
             "\"All five of us are reporting the same dream. Standing in the dark, stars turning, someone breathing right beside you. Five people do not have the same dream.\"");
-        Log(g, "halvorsen", new Vector3(0.95f, 0.03f, 30.1f), 30f, "DIRECTOR HALVORSEN. DAY 181",
-            "\"Reyes tried to stop it. It didn't matter. It asked for all of us and we came. We are not gone. We are kept.\"",
+        Log(g, "marsh", new Vector3(0.95f, 0.03f, 30.1f), 30f, "DIRECTOR MARSH. MISSION DAY 181",
+            "\"Cole tried to stop it. It didn't matter. It asked for all of us and we came. We are not gone. We are kept.\"",
             "\"If it is quiet when you find this, it is only waiting for someone to listen. It will ask for you by name.\"");
     }
 
@@ -980,7 +980,7 @@ public static class V2Builder
         if (startCanvas != null)
         {
             startCanvas.SetParent(c, false);
-            startCanvas.localPosition = new Vector3(0f, 1.5f, 1.3f);
+            startCanvas.localPosition = new Vector3(0f, 1.45f, 1.55f);
             startCanvas.localRotation = Quaternion.identity;
             startCanvas.localScale = Vector3.one * 0.00062f;
             var follow = startCanvas.GetComponent<WorldSpaceUIFollow>();
@@ -990,6 +990,11 @@ public static class V2Builder
             var backdrop = FindUI("StartBackdrop");
             if (backdrop != null) backdrop.gameObject.SetActive(false);
         }
+        // Ship hum, so the opening is not silent.
+        var hum = Source(c.gameObject, "ReactorHum", 20f);
+        hum.spatialBlend = 0f;
+        hum.volume = 0.45f;
+        hum.playOnAwake = true;
         if (xr != null) c.position = xr.transform.position;
 
         // Opening flight: come out of the jump further back and fly in for
@@ -1138,6 +1143,15 @@ public static class V2Builder
             if (en != null) en.boolValue = true;
             log.AppendLine("vignette provider " + providers[i].GetType().Name + " lp=" + (lp != null) + " en=" + (en != null));
         }
+        // Much gentler than the sample default, which closed in hard on every step.
+        var dp = so.FindProperty("m_DefaultParameters");
+        if (dp != null)
+        {
+            dp.FindPropertyRelative("m_ApertureSize").floatValue = 0.88f;
+            dp.FindPropertyRelative("m_FeatheringEffect").floatValue = 0.45f;
+            dp.FindPropertyRelative("m_EaseInTime").floatValue = 0.6f;
+            dp.FindPropertyRelative("m_EaseOutTime").floatValue = 0.6f;
+        }
         so.ApplyModifiedPropertiesWithoutUndo();
         go.SetActive(false);
     }
@@ -1168,6 +1182,33 @@ public static class V2Builder
         {
             var go = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(g => g.name == n && g.scene.IsValid() && g.transform.parent == null);
             if (go != null && lab != null) go.transform.SetParent(n.StartsWith("Dust") ? station : lab, true);
+        }
+
+        // The open airlock door used to swing into the corridor and poke
+        // through the wall into crew quarters. It now opens into the bay.
+        var airlock = station.Find("DockingBay/AirlockHinge");
+        if (airlock != null) { airlock.GetComponent<DoorSwing>().openAngle = -95f; EditorUtility.SetDirty(airlock.GetComponent<DoorSwing>()); }
+
+        // v1's ambience was nearly inaudible on the headset's speakers.
+        var amb = Object.FindFirstObjectByType<AmbienceManager>(FindObjectsInactive.Include);
+        if (amb != null)
+        {
+            amb.ambientBaseVolume = 0.35f; amb.ambientMaxVolume = 0.7f;
+            amb.bassRumbleBaseVolume = 0.3f; amb.bassRumbleMaxVolume = 0.6f;
+            EditorUtility.SetDirty(amb);
+        }
+
+        // Text that draws on top of walls (see V2Text).
+        Directory("Assets/Resources/V2");
+        var font = TMP_Settings.defaultFontAsset;
+        if (font != null)
+        {
+            string op = "Assets/Resources/V2/TMPOverlay.mat";
+            var om = AssetDatabase.LoadAssetAtPath<Material>(op);
+            if (om == null) { om = new Material(font.material); AssetDatabase.CreateAsset(om, op); }
+            om.CopyPropertiesFromMaterial(font.material);
+            om.shader = Shader.Find("TextMeshPro/Distance Field Overlay");
+            EditorUtility.SetDirty(om);
         }
 
         var zone = station.GetComponentInChildren<RoomEntryZone>(true);

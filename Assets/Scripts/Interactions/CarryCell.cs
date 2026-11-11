@@ -29,13 +29,19 @@ public class CarryCell : HoldInteractable
     protected override void OnHoldStart(Vector3 handPos)
     {
         if (returning != null) { StopCoroutine(returning); returning = null; }
+        // While carried the cell sits right in front of the player. As a
+        // solid collider it shoved against the player's own body and made
+        // walking with it judder (found on the headset).
+        SetSolid(false);
         if (socketHint != null) socketHint.Show("BRING THE CELL HERE");
     }
 
     protected override void OnHold(Vector3 handPos)
     {
         Vector3 target = handPos + hand.forward * 0.18f;
-        transform.position = Vector3.Lerp(transform.position, target, Time.deltaTime * 14f);
+        // Snap, don't ease: easing made the cell trail behind and wobble
+        // whenever the player moved with the stick.
+        transform.position = target;
         transform.rotation = Quaternion.Slerp(transform.rotation, hand.rotation * Quaternion.Euler(90f, 0f, 0f), Time.deltaTime * 10f);
         PulseSocket();
         if (socket != null && Vector3.Distance(transform.position, socket.position) <= seatRadius)
@@ -47,6 +53,11 @@ public class CarryCell : HoldInteractable
         if (socketHint != null) socketHint.Hide();
         SetSocketGlow(Color.black);
         if (!done) returning = StartCoroutine(ReturnHome());
+    }
+
+    void SetSolid(bool solid)
+    {
+        foreach (var col in GetComponentsInChildren<Collider>()) col.isTrigger = !solid;
     }
 
     void PulseSocket()
@@ -79,6 +90,7 @@ public class CarryCell : HoldInteractable
             yield return null;
         }
         transform.SetPositionAndRotation(homePos, homeRot);
+        SetSolid(true);
         returning = null;
     }
 

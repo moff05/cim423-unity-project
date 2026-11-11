@@ -58,6 +58,7 @@ public static class V2Builder
         BuildSoundPoints(director);
         BuildArtifact(station.transform);
         BuildVisualPass(station.transform, director);
+        BuildCockpit();
         BuildUI();
         BuildVignette();
         Cleanup(station.transform);
@@ -588,11 +589,9 @@ public static class V2Builder
             Clone(dust.transform, "DustMotes_Lab", a, new Vector3(0f, 1.7f, 28f));
         }
 
-        // Darker base, fog that thickens with progress (LightingDirector).
-        RenderSettings.fog = true;
-        RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.016f, 0.02f, 0.03f);
-        RenderSettings.fogDensity = 0.02f;
+        // No fog: it also swallowed everything far away, including the
+        // station on approach and the planets outside the windows.
+        RenderSettings.fog = false;
         RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.05f, 0.055f, 0.07f);
 
@@ -906,6 +905,105 @@ public static class V2Builder
         bezel.transform.rotation = rot;
         var quad = Prim(PrimitiveType.Quad, "StripLight_Display_" + name, parent, pos - lookDir * 0.012f, new Vector3(width, width * 0.5f, 1f), mat, false);
         quad.transform.rotation = rot;
+    }
+
+
+    // ---------------------------------------------------------------- Cockpit
+
+    // The player's ship bridge, used for the start screen and the opening
+    // flight. Built around the origin (player standing at 0,0,0 facing +Z);
+    // CockpitRig places it at run time.
+    static void BuildCockpit()
+    {
+        var startCanvas = FindUI("StartScreenCanvas");
+        if (startCanvas != null) startCanvas.SetParent(null, true);
+        var old = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(g => g.name == "Cockpit" && g.scene.IsValid() && g.transform.parent == null);
+        if (old != null) Object.DestroyImmediate(old);
+        // v1's "cockpit" was five bars attached to the camera, so it moved
+        // with the player's head.
+        var shell = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(g => g.name == "CockpitShell" && g.scene.IsValid());
+        if (shell != null) shell.SetActive(false);
+
+        var c = new GameObject("Cockpit").transform;
+        var glow = Accent("Cockpit", new Color(0.25f, 0.8f, 1f));
+        var amber = Accent("CockpitAmber", new Color(1f, 0.6f, 0.2f));
+
+        Box("Floor", c, new Vector3(0f, -0.05f, 0.2f), new Vector3(3.4f, 0.1f, 4.3f), Tiled(floorSrc, 3.4f, 4.3f), false);
+        Box("Ceiling", c, new Vector3(0f, 2.45f, -0.5f), new Vector3(3.4f, 0.1f, 2.9f), Tiled(ceilSrc, 3.4f, 2.9f), false);
+        Box("Wall_Rear", c, new Vector3(0f, 1.2f, -1.95f), new Vector3(3.4f, 2.5f, 0.1f), Tiled(wallSrc, 3.4f, 2.5f), false);
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            Box("Wall_Side", c, new Vector3(1.7f * sx, 1.2f, -0.95f), new Vector3(0.1f, 2.5f, 2f), Tiled(wallSrc, 2f, 2.5f), false);
+            Box("Sill_Side", c, new Vector3(1.7f * sx, 0.45f, 1.2f), new Vector3(0.1f, 0.9f, 2.3f), Tiled(wallSrc, 2.3f, 1f), false);
+            Box("Pillar_Mid", c, new Vector3(1.7f * sx, 1.65f, 0.1f), new Vector3(0.16f, 1.6f, 0.16f), mMetal, false);
+            Box("Rail_Top", c, new Vector3(1.7f * sx, 2.42f, 1.2f), new Vector3(0.16f, 0.16f, 2.3f), mMetal, false);
+            var p = Box("Pillar_Front", c, new Vector3(1.05f * sx, 1.65f, 2.32f), new Vector3(0.13f, 1.65f, 0.13f), mMetal, false);
+            p.transform.rotation = Quaternion.Euler(0f, 0f, -8f * sx);
+            Box("Pillar_Corner", c, new Vector3(1.7f * sx, 1.65f, 2.32f), new Vector3(0.16f, 1.6f, 0.16f), mMetal, false);
+            Box("Glow_Side", c, new Vector3(1.63f * sx, 0.92f, 1.2f), new Vector3(0.03f, 0.03f, 2.2f), glow, false);
+            Box("Glow_Ceiling", c, new Vector3(1.6f * sx, 2.36f, -0.9f), new Vector3(0.04f, 0.04f, 1.9f), glow, false);
+            // Side consoles with a display each.
+            Box("SideConsole", c, new Vector3(1.38f * sx, 0.42f, 0.9f), new Vector3(0.5f, 0.84f, 1.5f), mMetal, false);
+            var sd = Prim(PrimitiveType.Quad, "SideDisplay", c, new Vector3(1.38f * sx, 0.855f, 0.9f), new Vector3(1.3f, 0.42f, 1f),
+                AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/Mat_V2_Display_" + (sx < 0 ? "Engineering" : "Lab") + ".mat"), false);
+            sd.transform.rotation = Quaternion.Euler(90f, 90f * sx, 0f);
+        }
+        Box("Sill_Front", c, new Vector3(0f, 0.45f, 2.36f), new Vector3(3.5f, 0.9f, 0.1f), Tiled(wallSrc, 3.5f, 1f), false);
+        Box("Header_Front", c, new Vector3(0f, 2.4f, 2.3f), new Vector3(3.5f, 0.2f, 0.2f), mMetal, false);
+        Box("Canopy_Top", c, new Vector3(0f, 2.45f, 1.6f), new Vector3(3.4f, 0.1f, 1.4f), mMetal, false);
+
+        // Dashboard under the windshield.
+        Box("Dash_Body", c, new Vector3(0f, 0.42f, 2f), new Vector3(2.6f, 0.84f, 0.6f), mMetal, false);
+        var top = Box("Dash_Top", c, new Vector3(0f, 0.93f, 1.86f), new Vector3(2.6f, 0.05f, 0.8f), mDoor, false);
+        top.transform.rotation = Quaternion.Euler(-18f, 0f, 0f);
+        Box("Dash_Glow", c, new Vector3(0f, 0.8f, 1.49f), new Vector3(2.6f, 0.03f, 0.03f), glow, false);
+        var dd = Prim(PrimitiveType.Quad, "DashDisplay", c, new Vector3(0f, 0.99f, 1.84f), new Vector3(1.5f, 0.6f, 1f),
+            AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/Mat_V2_Display_Control.mat"), false);
+        dd.transform.rotation = Quaternion.Euler(72f, 0f, 0f);
+        for (int i = 0; i < 6; i++)
+        {
+            float x = (i < 3 ? -1.15f + i * 0.16f : 0.83f + (i - 3) * 0.16f);
+            var b = Box("DashButton", c, new Vector3(x, 0.99f, 1.78f), new Vector3(0.09f, 0.03f, 0.09f), i % 2 == 0 ? amber : glow, false);
+            b.transform.rotation = Quaternion.Euler(-18f, 0f, 0f);
+        }
+
+        var light = PointLight("Light_Cockpit", c, new Vector3(0f, 2.05f, 0.3f), new Color(0.7f, 0.88f, 1f), 1.1f, 5.5f);
+
+        var rigGO = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(g => g.name == "CinematicRig" && g.scene.IsValid());
+        var xr = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(g => g.name == "XR Origin (XR Rig)" && g.scene.IsValid());
+        var rig = c.gameObject.AddComponent<CockpitRig>();
+        rig.cinematicRig = rigGO != null ? rigGO.transform : null;
+        rig.xrOrigin = xr != null ? xr.transform : null;
+
+        // The start screen becomes the captain's console: fixed in the cabin,
+        // centred, straight ahead.
+        if (startCanvas != null)
+        {
+            startCanvas.SetParent(c, false);
+            startCanvas.localPosition = new Vector3(0f, 1.5f, 1.3f);
+            startCanvas.localRotation = Quaternion.identity;
+            startCanvas.localScale = Vector3.one * 0.00062f;
+            var follow = startCanvas.GetComponent<WorldSpaceUIFollow>();
+            if (follow != null) follow.enabled = false;
+            rig.startCanvas = startCanvas.GetComponent<Canvas>();
+            // Drop the old full-canvas black backdrop so the windshield shows around the panel.
+            var backdrop = FindUI("StartBackdrop");
+            if (backdrop != null) backdrop.gameObject.SetActive(false);
+        }
+        if (xr != null) c.position = xr.transform.position;
+
+        // Opening flight: come out of the jump further back and fly in for
+        // longer, so the station is seen growing in the windshield.
+        var intro = Object.FindFirstObjectByType<IntroSequence>(FindObjectsInactive.Include);
+        if (intro != null)
+        {
+            intro.postJumpPosition = new Vector3(0f, 0f, 2250f);
+            intro.flightEndPosition = new Vector3(0f, 0f, 2990f);
+            intro.approachDuration = 9f;
+            EditorUtility.SetDirty(intro);
+            if (intro.cinematicCamera != null) { intro.cinematicCamera.farClipPlane = 4000f; EditorUtility.SetDirty(intro.cinematicCamera); }
+            if (intro.cinematicLight != null) { intro.cinematicLight.intensity = 2.2f; EditorUtility.SetDirty(intro.cinematicLight); }
+        }
     }
 
     // --------------------------------------------------------------------- UI

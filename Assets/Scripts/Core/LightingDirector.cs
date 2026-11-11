@@ -113,7 +113,6 @@ public class LightingDirector : MonoBehaviour
         }
 
         float progress = InteractionSequencer.Instance != null ? InteractionSequencer.Instance.Progress : 0f;
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.02f, 0.055f, progress), Time.deltaTime);
 
         UpdateLamp();
         if (Suspended) return;

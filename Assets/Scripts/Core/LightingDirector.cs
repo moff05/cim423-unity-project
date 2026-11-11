@@ -38,6 +38,8 @@ public class LightingDirector : MonoBehaviour
     {
         public Renderer renderer;
         public Entry owner;
+        // The strip's own colour (each room has its own accent).
+        public Color baseEmission;
     }
 
     readonly List<Entry> entries = new List<Entry>();
@@ -84,7 +86,9 @@ public class LightingDirector : MonoBehaviour
                 float d = (e.light.transform.position - r.transform.position).sqrMagnitude;
                 if (d < bestDist) { bestDist = d; best = e; }
             }
-            strips.Add(new Strip { renderer = r, owner = best });
+            var mat = r.sharedMaterial;
+            Color baseEmission = mat != null && mat.HasProperty(EmissionColor) ? mat.GetColor(EmissionColor) : Color.white;
+            strips.Add(new Strip { renderer = r, owner = best, baseEmission = baseEmission });
         }
     }
 
@@ -156,7 +160,7 @@ public class LightingDirector : MonoBehaviour
         {
             if (s.renderer == null || s.owner == null) continue;
             float k = s.owner.baseIntensity > 0.001f ? s.owner.current / s.owner.baseIntensity : 0f;
-            mpb.SetColor(EmissionColor, s.owner.light.color * (k * 1.6f));
+            mpb.SetColor(EmissionColor, s.baseEmission * k);
             s.renderer.SetPropertyBlock(mpb);
         }
     }

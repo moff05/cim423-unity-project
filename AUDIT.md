@@ -42,7 +42,10 @@ Problems found, ranked by how much they hurt a first-time player:
 | Lighting states | 1 | 4 (emergency, powered, blackout with suit lamp, lab only) |
 | Captions that need no click | 0 | PA, radio voices, float whispers, stuck hints |
 | Station lights | 7 | 9, plus one suit lamp |
-| Renderers under Station | about 305 | 369 |
+| Renderers under Station | about 305 | 478 |
+| Surface textures | 256 px flat grids | 1024 px panel sets with normal and smoothness maps |
+| Trim | none | cove light strips, ceiling beams, corner posts, floor guide strips, a colour per room |
+| Wall displays | 0 | 3 |
 
 Decisions made without asking, as the plan allowed:
 
@@ -53,7 +56,7 @@ Decisions made without asking, as the plan allowed:
 - **No monsters, no silhouettes.** Kept from v1. Scares are sound direction, light and absence.
 - **Carry is not physics.** The cell follows the hand while held and drifts back to its rack if dropped, so it cannot be thrown out of reach. The dial only sweeps forward and wraps. Neither can soft-lock.
 - **New hand interactions reuse the wheel's mechanism** (an `XRSimpleInteractable` held while the hand position is read), because that is the one grab pattern already proven on the headset.
-- **Kept the Kenney-and-primitives look** and built the new rooms from the same wall, floor and ceiling textures instead of mixing in a second art style.
+- **Kept the Kenney-and-primitives props, replaced every surface.** After the first pass the user's verdict was that the scene still looked the same, and it did: all the work had gone into mechanics and story. A second pass (`BuildVisualPass` in `V2Builder.cs`) retextured every wall, floor and ceiling, dressed all six rooms with trim and coloured cove lighting, added three wall displays, and added a colour grade.
 - **Lighting stays real-time.** Baking was skipped: the room shells are unwrapped primitives, and the new lighting states change every light at run time.
 - **Vignette defaults to off** because it could not be checked on the headset.
 
@@ -68,7 +71,7 @@ Decisions made without asking, as the plan allowed:
 ## Not verified (needs the Quest)
 
 - Every new grab interaction with real controllers: hatch, cell, lever, dial.
-- Frame rate with fog, 9 lights and the suit lamp.
+- Frame rate with fog, 9 lights, the suit lamp, normal-mapped surfaces and about 110 extra trim renderers. This is the biggest open risk: if it drops frames, cut the corner posts and beams first, then the normal maps.
 - Caption and HUD placement and text size in the headset.
 - Snap/smooth turn toggle and the tunneling vignette.
 - The float ending's player freeze and restore (code path unchanged from v1, but re-test it).

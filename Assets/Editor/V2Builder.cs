@@ -6,6 +6,8 @@ using UnityEditor;
 using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 // Builds everything v2 added to the scene: Crew Quarters, Engineering, the
@@ -55,6 +57,7 @@ public static class V2Builder
         BuildAtmosphere(station.transform);
         BuildSoundPoints(director);
         BuildArtifact(station.transform);
+        BuildVisualPass(station.transform, director);
         BuildUI();
         BuildVignette();
         Cleanup(station.transform);
@@ -125,7 +128,8 @@ public static class V2Builder
     static Material Tiled(Material src, float x, float y)
     {
         var m = new Material(src) { name = src.name + " (V2)" };
-        m.mainTextureScale = new Vector2(Mathf.Max(1f, x), Mathf.Max(1f, y));
+        // The v2 panel textures cover 2 m x 2 m.
+        m.mainTextureScale = new Vector2(Mathf.Max(0.5f, x * 0.5f), Mathf.Max(0.5f, y * 0.5f));
         return m;
     }
 
@@ -403,6 +407,15 @@ public static class V2Builder
         var glow = new List<Renderer>();
         foreach (float y in new[] { 0.75f, 1.4f, 2.05f })
             glow.Add(Prim(PrimitiveType.Cylinder, "GlowBand", reactor, new Vector3(9f, y, 20f), new Vector3(1.66f, 0.035f, 1.66f), mGlow, false).GetComponent<Renderer>());
+        // Vertical core slits between the bands.
+        for (int i = 0; i < 6; i++)
+        {
+            float a = i * 60f + 30f;
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            var slit = Box("CoreSlit", reactor, new Vector3(9f, 1.4f, 20f) + dir * 0.8f, new Vector3(0.07f, 1.05f, 0.03f), mGlow, false);
+            slit.transform.rotation = Quaternion.LookRotation(dir);
+            glow.Add(slit.GetComponent<Renderer>());
+        }
         director.reactorGlow = glow.ToArray();
         director.reactorHum = Source(reactor.gameObject, "ReactorHum", 14f);
 
@@ -580,7 +593,7 @@ public static class V2Builder
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = new Color(0.016f, 0.02f, 0.03f);
         RenderSettings.fogDensity = 0.02f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.05f, 0.055f, 0.07f);
 
         // The 0.05-intensity directional light was still paying for a soft
@@ -713,6 +726,186 @@ public static class V2Builder
         mesh.SetTriangles(tris, 0);
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+    }
+
+
+    // ------------------------------------------------------------ Visual pass
+
+    const string TexDir = "Assets/Art/V2/Tex/";
+
+    static Texture2D Tex(string name, bool normal = false, bool linear = false)
+    {
+        string path = TexDir + name + ".png";
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
+        {
+            bool dirty = false;
+            var wantType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+            if (importer.textureType != wantType) { importer.textureType = wantType; dirty = true; }
+            if (importer.sRGBTexture == linear && !normal) { importer.sRGBTexture = !linear; dirty = true; }
+            if (importer.maxTextureSize != 1024) { importer.maxTextureSize = 1024; dirty = true; }
+            if (importer.wrapMode != TextureWrapMode.Repeat) { importer.wrapMode = TextureWrapMode.Repeat; dirty = true; }
+            if (!importer.mipmapEnabled) { importer.mipmapEnabled = true; dirty = true; }
+            if (importer.anisoLevel != 4) { importer.anisoLevel = 4; dirty = true; }
+            if (dirty) importer.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
+    static void ApplySurface(Material m, string set)
+    {
+        m.SetTexture("_BaseMap", Tex(set + "_Albedo"));
+        m.SetTexture("_BumpMap", Tex(set + "_Normal", true));
+        m.SetFloat("_BumpScale", 1f);
+        m.EnableKeyword("_NORMALMAP");
+        m.SetTexture("_MetallicGlossMap", Tex(set + "_MS", false, true));
+        m.EnableKeyword("_METALLICSPECGLOSSMAP");
+        m.SetFloat("_Smoothness", 0.85f);
+        m.color = Color.white;
+    }
+
+    static Material Accent(string room, Color c)
+    {
+        return Mat("Mat_V2_Accent_" + room, new Color(0.02f, 0.02f, 0.02f), c * 1.5f, 0f, 0.6f);
+    }
+
+    static void BuildVisualPass(Transform station, StoryDirector director)
+    {
+        // 1. Every wall, floor and ceiling: 1024 px panel textures with normal
+        //    and smoothness maps, replacing v1's flat 256 px grids.
+        foreach (var set in new[] { "Wall", "Floor", "Ceiling" })
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_" + set + ".mat");
+            ApplySurface(asset, set);
+            EditorUtility.SetDirty(asset);
+        }
+        int restyled = 0;
+        foreach (var r in station.GetComponentsInChildren<Renderer>(true))
+        {
+            var m = r.sharedMaterial;
+            if (m == null) continue;
+            string set = m.name.StartsWith("Mat_Wall") ? "Wall" : m.name.StartsWith("Mat_Floor") ? "Floor" : m.name.StartsWith("Mat_Ceiling") ? "Ceiling" : null;
+            if (set == null) continue;
+            // Scene-embedded instances keep their own tiling; assets are shared.
+            if (AssetDatabase.Contains(m)) { m = new Material(m) { name = m.name + " (V2)" }; r.sharedMaterial = m; }
+            ApplySurface(m, set);
+            Vector3 sc = r.transform.lossyScale;
+            m.mainTextureScale = set == "Wall"
+                ? new Vector2(Mathf.Max(0.5f, Mathf.Max(sc.x, sc.z) * 0.5f), Mathf.Max(0.5f, sc.y * 0.5f))
+                : new Vector2(Mathf.Max(0.5f, sc.x * 0.5f), Mathf.Max(0.5f, sc.z * 0.5f));
+            EditorUtility.SetDirty(r);
+            restyled++;
+        }
+        log.AppendLine("restyled surfaces: " + restyled);
+
+        // 2. Trim and coloured light in every room.
+        var t = Group("Trim", root, Vector3.zero);
+        Dress(t, "DockingBay", -4.9f, 4.9f, 0.1f, 9.9f, 4f, new Color(1f, 0.6f, 0.22f), true);
+        Dress(t, "Corridor", -1.4f, 1.4f, 10.1f, 15.9f, 4f, new Color(0.25f, 0.8f, 1f), false);
+        Dress(t, "ControlRoom", -3.9f, 3.9f, 16.1f, 23.9f, 4f, new Color(0.3f, 0.65f, 1f), true);
+        Dress(t, "Lab", -3.9f, 3.9f, 24.1f, 31.9f, 4f, new Color(0.55f, 0.4f, 1f), true);
+        Dress(t, "Quarters", -7.5f, -1.6f, 10.3f, 15.7f, 3f, new Color(1f, 0.72f, 0.45f), true);
+        Dress(t, "Engineering", 4.1f, 10.5f, 16.4f, 23.6f, 4f, new Color(1f, 0.4f, 0.16f), true);
+
+        // 3. Hazard surrounds on the two new doorways.
+        var hazardTex = Mat("Mat_V2_HazardTex", Color.white, null, 0.1f, 0.35f);
+        hazardTex.SetTexture("_BaseMap", Tex("Hazard_Albedo"));
+        hazardTex.mainTextureScale = new Vector2(1f, 4f);
+        Box("Frame_Q_L", t, new Vector3(-1.385f, 1.31f, 12.24f), new Vector3(0.03f, 2.62f, 0.12f), hazardTex, false);
+        Box("Frame_Q_R", t, new Vector3(-1.385f, 1.31f, 13.76f), new Vector3(0.03f, 2.62f, 0.12f), hazardTex, false);
+        Box("Frame_Q_T", t, new Vector3(-1.385f, 2.56f, 13f), new Vector3(0.03f, 0.12f, 1.64f), hazardTex, false);
+        Box("Frame_E_L", t, new Vector3(3.885f, 1.31f, 16.94f), new Vector3(0.03f, 2.62f, 0.12f), hazardTex, false);
+        Box("Frame_E_R", t, new Vector3(3.885f, 1.31f, 18.66f), new Vector3(0.03f, 2.62f, 0.12f), hazardTex, false);
+        Box("Frame_E_T", t, new Vector3(3.885f, 2.56f, 17.8f), new Vector3(0.03f, 0.12f, 1.84f), hazardTex, false);
+
+        // 4. Wall displays. Named StripLight_* so LightingDirector powers
+        //    them down with the room they are in.
+        Display(t, "Control", new Vector3(2.55f, 2.0f, 23.88f), Vector3.forward, 2.3f);
+        Display(t, "Engineering", new Vector3(10.47f, 1.6f, 21.7f), Vector3.right, 2.1f);
+        Display(t, "Lab", new Vector3(2.1f, 1.95f, 31.88f), Vector3.forward, 2.1f);
+
+        // 5. Grade: a little more contrast and a cold cast.
+        var volume = Object.FindFirstObjectByType<Volume>();
+        if (volume != null && volume.sharedProfile != null)
+        {
+            var profile = volume.sharedProfile;
+            if (!profile.TryGet<ColorAdjustments>(out var grade)) grade = profile.Add<ColorAdjustments>(true);
+            grade.active = true;
+            grade.postExposure.Override(0.25f);
+            grade.contrast.Override(16f);
+            grade.saturation.Override(8f);
+            grade.colorFilter.Override(new Color(0.92f, 0.97f, 1f));
+            if (profile.TryGet<Bloom>(out var bloom))
+            {
+                bloom.active = true;
+                bloom.threshold.Override(0.95f);
+                bloom.intensity.Override(0.9f);
+                bloom.scatter.Override(0.62f);
+            }
+            if (profile.TryGet<Vignette>(out var vig)) { vig.active = true; vig.intensity.Override(0.28f); vig.smoothness.Override(0.5f); }
+            EditorUtility.SetDirty(profile);
+        }
+    }
+
+    // Cove lighting, ceiling beams, corner posts and floor guide strips for
+    // one room, given its inner bounds.
+    static void Dress(Transform parent, string room, float x0, float x1, float z0, float z1, float h, Color accent, bool posts)
+    {
+        var g = Group("Trim_" + room, parent, Vector3.zero);
+        var glow = Accent(room, accent);
+        float cx = (x0 + x1) * 0.5f, cz = (z0 + z1) * 0.5f, w = x1 - x0, d = z1 - z0;
+        float y = h - 0.42f;
+
+        // Cove: a dark housing with a strip of coloured light under it.
+        Box("Cove_N", g, new Vector3(cx, y + 0.09f, z1 - 0.07f), new Vector3(w, 0.12f, 0.14f), mMetal, false);
+        Box("Cove_S", g, new Vector3(cx, y + 0.09f, z0 + 0.07f), new Vector3(w, 0.12f, 0.14f), mMetal, false);
+        Box("Cove_E", g, new Vector3(x1 - 0.07f, y + 0.09f, cz), new Vector3(0.14f, 0.12f, d), mMetal, false);
+        Box("Cove_W", g, new Vector3(x0 + 0.07f, y + 0.09f, cz), new Vector3(0.14f, 0.12f, d), mMetal, false);
+        Box("StripLight_Cove_N", g, new Vector3(cx, y, z1 - 0.06f), new Vector3(w - 0.3f, 0.04f, 0.05f), glow, false);
+        Box("StripLight_Cove_S", g, new Vector3(cx, y, z0 + 0.06f), new Vector3(w - 0.3f, 0.04f, 0.05f), glow, false);
+        Box("StripLight_Cove_E", g, new Vector3(x1 - 0.06f, y, cz), new Vector3(0.05f, 0.04f, d - 0.3f), glow, false);
+        Box("StripLight_Cove_W", g, new Vector3(x0 + 0.06f, y, cz), new Vector3(0.05f, 0.04f, d - 0.3f), glow, false);
+
+        // Floor guide strips along the two long walls.
+        if (d >= w)
+        {
+            Box("StripLight_Floor_E", g, new Vector3(x1 - 0.05f, 0.015f, cz), new Vector3(0.05f, 0.03f, d - 0.4f), glow, false);
+            Box("StripLight_Floor_W", g, new Vector3(x0 + 0.05f, 0.015f, cz), new Vector3(0.05f, 0.03f, d - 0.4f), glow, false);
+        }
+        else
+        {
+            Box("StripLight_Floor_N", g, new Vector3(cx, 0.015f, z1 - 0.05f), new Vector3(w - 0.4f, 0.03f, 0.05f), glow, false);
+            Box("StripLight_Floor_S", g, new Vector3(cx, 0.015f, z0 + 0.05f), new Vector3(w - 0.4f, 0.03f, 0.05f), glow, false);
+        }
+
+        // Ceiling beams across the short span.
+        int beams = Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(w, d) / 2.6f) - 1);
+        for (int i = 1; i <= beams; i++)
+        {
+            float f = i / (float)(beams + 1);
+            if (d >= w) Box("Beam", g, new Vector3(cx, h - 0.09f, Mathf.Lerp(z0, z1, f)), new Vector3(w, 0.18f, 0.22f), mMetal, false);
+            else Box("Beam", g, new Vector3(Mathf.Lerp(x0, x1, f), h - 0.09f, cz), new Vector3(0.22f, 0.18f, d), mMetal, false);
+        }
+
+        if (!posts) return;
+        foreach (var p in new[] { new Vector2(x0, z0), new Vector2(x1, z0), new Vector2(x0, z1), new Vector2(x1, z1) })
+        {
+            float px = p.x + (p.x < cx ? 0.13f : -0.13f), pz = p.y + (p.y < cz ? 0.13f : -0.13f);
+            Box("Post", g, new Vector3(px, h * 0.5f, pz), new Vector3(0.26f, h, 0.26f), mMetal, false);
+        }
+    }
+
+    static void Display(Transform parent, string name, Vector3 pos, Vector3 lookDir, float width)
+    {
+        var tex = Tex("Screen_" + name);
+        var mat = Mat("Mat_V2_Display_" + name, new Color(0.02f, 0.03f, 0.04f), Color.white * 1.25f, 0f, 0.7f);
+        mat.SetTexture("_BaseMap", tex);
+        mat.SetTexture("_EmissionMap", tex);
+        var rot = Quaternion.LookRotation(lookDir, Vector3.up);
+        var bezel = Box("DisplayBezel_" + name, parent, pos + lookDir * 0.012f, new Vector3(width + 0.12f, width * 0.5f + 0.12f, 0.03f), mMetal, false);
+        bezel.transform.rotation = rot;
+        var quad = Prim(PrimitiveType.Quad, "StripLight_Display_" + name, parent, pos - lookDir * 0.012f, new Vector3(width, width * 0.5f, 1f), mat, false);
+        quad.transform.rotation = rot;
     }
 
     // --------------------------------------------------------------------- UI

@@ -22,16 +22,12 @@ using UnityEngine.UI;
 // here for a different element.
 public class ObjectiveHUD : MonoBehaviour
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    static void Install()
-    {
-        var go = new GameObject("ObjectiveHUD");
-        go.AddComponent<ObjectiveHUD>();
-    }
+    // Created by V2Bootstrap on every scene load (so it survives Restart).
 
     CanvasGroup canvasGroup;
     TMP_Text text;
     string lastShown;
+    string lastLine;
     ArtifactInteractable artifact;
 
     void Awake()
@@ -45,7 +41,9 @@ public class ObjectiveHUD : MonoBehaviour
         canvasGroup.interactable = false;
 
         var rt = canvasGO.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(900, 140);
+        // Tall canvas with the text pinned to its top edge: the line sits
+        // above the player's eyeline instead of across the middle of it.
+        rt.sizeDelta = new Vector2(1100, 760);
         canvasGO.transform.localScale = Vector3.one * 0.0009f;
 
         var follow = canvasGO.AddComponent<WorldSpaceUIFollow>();
@@ -62,7 +60,7 @@ public class ObjectiveHUD : MonoBehaviour
         text.color = new Color(1f, 0.85f, 0.3f);
         text.text = "";
         var textRT = textGO.GetComponent<RectTransform>();
-        textRT.anchorMin = new Vector2(0f, 0.55f);
+        textRT.anchorMin = new Vector2(0f, 0.86f);
         textRT.anchorMax = new Vector2(1f, 1f);
         textRT.offsetMin = Vector2.zero;
         textRT.offsetMax = Vector2.zero;
@@ -91,7 +89,14 @@ public class ObjectiveHUD : MonoBehaviour
         if (desc != lastShown)
         {
             lastShown = desc;
-            text.text = "NEXT: " + desc;
+        }
+        string line = "NEXT: " + desc;
+        if (StoryState.LogsFound > 0)
+            line += "\n<size=70%><color=#59D9FF>CREW LOGS " + StoryState.LogsFound + "/" + StoryState.TotalLogs + "</color></size>";
+        if (line != lastLine)
+        {
+            lastLine = line;
+            text.text = line;
         }
     }
 }

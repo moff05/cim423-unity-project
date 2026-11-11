@@ -188,8 +188,13 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
     {
         if (!IsCurrentlyInteractable()) return;
         triggered = true;
+        StoryState.EndingStarted = true;
         hint.Hide();
         CoroutineHost.StartCoroutine(RevealRoutine());
+    }
+
+    void StartPreHideWatchdog()
+    {
         // Covers reveal+shake specifically - the one leg of this sequence
         // with no player-input dependency before the room ever hides (the
         // one dialogue wait that can precede it, LabState.IntroShown, is
@@ -218,6 +223,17 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             if (DialogueUI.Instance != null)
                 yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "This is the room the journal entry meant.");
         }
+
+        // ECHO has been steering the player here the whole run.
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Go on, {PlayerName}. This is what we came for.");
+        if (StoryState.Informed && DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "We?");
+
+        // Started only now: the watchdog's deadline is real time, and the
+        // lines above wait on the player.
+        StartPreHideWatchdog();
+        if (LightingDirector.Instance != null) LightingDirector.Instance.Suspended = true;
 
         float t = 0f;
         while (t < revealDuration)
@@ -249,6 +265,9 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         if (glitchAudioSource != null) glitchAudioSource.Stop();
         AmbienceManager.Instance?.SetMuted(true);
         AmbienceManager.Instance?.PlayBreathingOnce();
+        // If the player read enough of the crew's logs, they know who is
+        // breathing next to them, and now they can make out the words.
+        if (StoryState.Informed) CoroutineHost.StartCoroutine(FloatWhispers());
 
         // Belt-and-suspenders: this exact beat ("space never comes back")
         // has been reported multiple times on real Quest hardware and could
@@ -272,6 +291,7 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         // Back to normal.
         SetRoomVisible(true);
         RestorePlayer();
+        if (LightingDirector.Instance != null) LightingDirector.Instance.Suspended = false;
         // Camera pose logged here specifically to test a theory from
         // direct feedback ("didn't see the station reappear before the
         // dialogue triggers") - the float has no visual anchor, so the
@@ -299,10 +319,22 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         }
         ApplyEmission(dimBlue);
 
-        if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "{PlayerName}. Whatever that was, it's done now. Don't touch it again.");
-        if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "Wasn't planning on it.");
+        if (StoryState.Informed)
+        {
+            if (DialogueUI.Instance != null)
+                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "You heard them. So did I, {PlayerName}. Six months ago, five voices on a dead band. That's why I brought us here.");
+            if (DialogueUI.Instance != null)
+                yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "You told me this was salvage.");
+            if (DialogueUI.Instance != null)
+                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "It was a rescue. I just couldn't open the doors myself.");
+        }
+        else
+        {
+            if (DialogueUI.Instance != null)
+                yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "{PlayerName}. Whatever that was, it's done now. Don't touch it again.");
+            if (DialogueUI.Instance != null)
+                yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "Wasn't planning on it.");
+        }
 
         yield return new WaitForSeconds(0.6f);
         if (!endingComplete)
@@ -310,9 +342,84 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
             endingComplete = true;
             InteractionSequencer.Instance?.CompleteStep(StepId);
             DisableBlockingColliders();
-            endScreen?.Show();
+            endScreen?.Show(TouchEnding);
         }
     }
+
+    EndingKind TouchEnding => StoryState.Informed ? EndingKind.Day181 : EndingKind.Salvage;
+
+    IEnumerator FloatWhispers()
+    {
+        V2Audio.Play2D("FloatWhispers", 0.9f);
+        yield return new WaitForSeconds(1.2f);
+        AmbientCaption.Say("", "\"...is someone there?...\"", 2.2f);
+        yield return new WaitForSeconds(3.2f);
+        AmbientCaption.Say("", "\"...there's six now...\"", 2.2f);
+        yield return new WaitForSeconds(3.2f);
+        AmbientCaption.Say("", "\"...don't let it close...\"", 2.2f);
+    }
+
+    // The other final choice: the containment lever by the lab door. No
+    // float, nothing is hidden and the player is never moved, so none of the
+    // free-fall safeguards are needed until the end screen itself.
+    public void SealInstead()
+    {
+        if (triggered) return;
+        triggered = true;
+        StoryState.EndingStarted = true;
+        hint.Hide();
+        CoroutineHost.StartCoroutine(SealRoutine());
+    }
+
+    IEnumerator SealRoutine()
+    {
+        if (LightingDirector.Instance != null) LightingDirector.Instance.Suspended = true;
+        V2Audio.Play2D("PowerDown", 0.9f);
+        if (sirenAudio != null && sirenAudio.clip != null) { sirenAudio.loop = true; sirenAudio.Play(); }
+
+        // Lab lights swing to alarm red while the artifact's glow drains.
+        float t = 0f;
+        const float drain = 3.5f;
+        while (t < drain)
+        {
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / drain);
+            ApplyEmission(Color.Lerp(InteractionSequencer.HighlightColor * 1.5f, Color.black, u));
+            if (glitchLights != null)
+                for (int i = 0; i < glitchLights.Length; i++)
+                {
+                    if (glitchLights[i] == null) continue;
+                    glitchLights[i].color = Color.Lerp(glitchLightBaseColors[i], Color.red, u);
+                    glitchLights[i].intensity = glitchLightBaseIntensities[i] * Mathf.Lerp(1f, 0.45f, u) * (0.8f + 0.2f * Mathf.Sin(t * 14f));
+                }
+            if (u > 0.3f && !sealInterrupted)
+            {
+                sealInterrupted = true;
+                AmbientCaption.Say("ECHO", "{PlayerName}, wait. Don't cut it. They're still", 2.6f);
+            }
+            yield return null;
+        }
+        if (sirenAudio != null) sirenAudio.Stop();
+        ApplyEmission(Color.black);
+        V2Audio.Play2D("LeverClunk", 1f);
+        AmbienceManager.Instance?.SetMuted(true);
+
+        yield return new WaitForSeconds(2.5f);
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "ECHO?");
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("", "Nothing answers. The band is empty.");
+
+        if (!endingComplete)
+        {
+            endingComplete = true;
+            InteractionSequencer.Instance?.CompleteStep(StepId);
+            DisableBlockingColliders();
+            endScreen?.Show(EndingKind.Sealed);
+        }
+    }
+
+    bool sealInterrupted;
 
     // Real bug, confirmed against the XR Interaction Toolkit source
     // (NearFarInteractor.cs ProcessInteractor -> shouldProcess2dHit): the
@@ -412,9 +519,10 @@ public class ArtifactInteractable : MonoBehaviour, IDesktopInteractable
         AmbienceManager.Instance?.StopBreathing();
         AmbienceManager.Instance?.SetMuted(false);
         ApplyEmission(dimBlue);
+        if (LightingDirector.Instance != null) LightingDirector.Instance.Suspended = false;
         InteractionSequencer.Instance?.CompleteStep(StepId);
         DisableBlockingColliders();
-        endScreen?.Show();
+        endScreen?.Show(TouchEnding);
     }
 
     IEnumerator ShakeAndFlickerRoutine(float duration)

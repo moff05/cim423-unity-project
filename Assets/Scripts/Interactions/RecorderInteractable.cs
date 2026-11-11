@@ -99,6 +99,11 @@ public class RecorderInteractable : MonoBehaviour, IDesktopInteractable
         if (DialogueUI.Instance != null)
             yield return DialogueUI.Instance.ShowAndWaitForInput("", "The recorder plays back the last few seconds it ever captured: one ragged breath, then nothing. No one made a Day 181 entry, there was no one left to make it.");
 
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Equipment noise. Don't read into it.");
+        if (StoryState.Informed && DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "That was a person, ECHO. And you know it.");
+
         InteractionSequencer.Instance?.CompleteStep(StepId);
     }
 

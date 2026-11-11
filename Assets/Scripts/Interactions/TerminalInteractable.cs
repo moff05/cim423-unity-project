@@ -13,7 +13,7 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
     public TMP_Text infoBodyText;
     [TextArea]
     public string journalEntry =
-        "JOURNAL - Day 180: \"Resonance from the artifact is climbing again. Director wants to run a full-power test tomorrow. I've logged my objection.\"";
+        "DR. OKAFOR, JOURNAL, DAY 180\n\"Resonance from the artifact is climbing again. The Director wants a full-power test tomorrow, with all five of us in the room. I've logged my objection.\"\n\nLAB DOOR: REMOTE LOCK HELD BY THE CREW-BAND RELAY (CREW QUARTERS). TUNE THE RELAY TO THE DOOR BAND TO RELEASE.";
 
     public float idlePulseSpeed = 1.6f;
     public float idlePulseMin = 0.15f;
@@ -92,9 +92,9 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
     IEnumerator ActivateRoutine()
     {
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Terminal's still got power. Might be worth a look before you start pulling wiring.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "There. Terminal's live. Let's see who we're salvaging from.");
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Crew roster says five people, {PlayerName}. The station's activity log, every entry, every day, automatic, stops dead on the same day, for all five. Not staggered. Not partial. Same day. That's not what a normal evacuation looks like.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Crew roster says five, {PlayerName}. Halvorsen, Okafor, Reyes, Lindqvist, Tanaka. The automatic activity log stops on the same day for all five. Not staggered. Same minute.");
 
         if (infoBodyText != null) infoBodyText.text = journalEntry;
         if (infoPanel != null)
@@ -115,6 +115,9 @@ public class TerminalInteractable : MonoBehaviour, IDesktopInteractable
             infoPanel.blocksRaycasts = false;
             infoPanel.interactable = false;
         }
+
+        if (DialogueUI.Instance != null)
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Standard evacuation, most likely. The lab is locked off a relay in crew quarters, back off the corridor. That door has power now. Go tune it.");
 
         InteractionSequencer.Instance?.CompleteStep(StepId);
     }

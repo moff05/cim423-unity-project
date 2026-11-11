@@ -80,7 +80,7 @@ public class AirlockInteractable : MonoBehaviour, IDesktopInteractable
         busy = true;
 
         if (DialogueUI.Instance != null)
-            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Docking clamps engaged. Life support's still running in there, {PlayerName}. Lights, gravity, air, all of it. Somebody left the lights on for six months.");
+            yield return DialogueUI.Instance.ShowAndWaitForInput("ECHO", "Docking clamps engaged. Air and gravity are still up in there, {PlayerName}, but the reactor's cold. She's been running on a trickle for six months.");
         if (DialogueUI.Instance != null)
             yield return DialogueUI.Instance.ShowAndWaitForInput("{PlayerName}", "Great. More parts for us, then.");
 

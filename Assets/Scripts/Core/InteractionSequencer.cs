@@ -31,9 +31,12 @@ public class InteractionSequencer : MonoBehaviour
         return c * t * BloomBoost;
     }
 
-    public List<string> stepOrder = new List<string>
+    // readonly on purpose: a serialized list would keep whatever order the
+    // scene file last saved and silently ignore edits made here.
+    public readonly List<string> stepOrder = new List<string>
     {
-        "airlock", "corridordoor", "terminal", "labdoor", "recorder", "artifact"
+        "airlock", "corridordoor", "enghatch", "powercell", "breaker",
+        "terminal", "radio", "labdoor", "recorder", "artifact"
     };
 
     // Player-facing objective text per step, for ObjectiveHUD - per direct
@@ -45,14 +48,26 @@ public class InteractionSequencer : MonoBehaviour
     static readonly Dictionary<string, string> StepDescriptions = new Dictionary<string, string>
     {
         { "airlock", "Open the airlock" },
-        { "corridordoor", "Open the corridor door" },
-        { "terminal", "Check the terminal" },
+        { "corridordoor", "Open the door at the end of the corridor" },
+        { "enghatch", "Slide open the Engineering hatch" },
+        { "powercell", "Carry a power cell to the reactor" },
+        { "breaker", "Pull the main bus breaker" },
+        { "terminal", "Check the terminal in the control room" },
+        { "radio", "Tune the relay in crew quarters" },
         { "labdoor", "Open the lab door" },
         { "recorder", "Play the recorder" },
-        { "artifact", "Examine the artifact" },
+        { "artifact", "Touch the artifact, or pull the containment seal" },
     };
 
     int currentIndex;
+    float stepStartTime;
+
+    // Fired with the id of the step that was just finished.
+    public event System.Action<string> StepCompleted;
+
+    // Seconds the player has been on the current step, for stuck hints.
+    public float TimeOnStep => Time.time - stepStartTime;
+    public void ResetStepTimer() { stepStartTime = Time.time; }
 
     void Awake()
     {
@@ -82,6 +97,9 @@ public class InteractionSequencer : MonoBehaviour
 
     public void CompleteStep(string stepId)
     {
-        if (IsCurrentStep(stepId)) currentIndex++;
+        if (!IsCurrentStep(stepId)) return;
+        currentIndex++;
+        stepStartTime = Time.time;
+        StepCompleted?.Invoke(stepId);
     }
 }

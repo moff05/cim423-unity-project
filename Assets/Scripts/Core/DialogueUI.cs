@@ -24,8 +24,11 @@ public class DialogueUI : MonoBehaviour
     // by an interaction (door opening, zone entry) can't cut the previous
     // one off before it has been read.
     bool showing;
+    int pending;
+    // True while a line is on screen or queued behind one.
+    public bool IsBusy => showing || pending > 0;
 
-    void OnDisable() { showing = false; }
+    void OnDisable() { showing = false; pending = 0; }
 
     public void Show(string speaker, string text, float holdDuration = 4f)
     {
@@ -46,7 +49,9 @@ public class DialogueUI : MonoBehaviour
 
     IEnumerator ShowUntilInputRoutine(string speaker, string text)
     {
+        pending++;
         while (showing) yield return null;
+        pending--;
         showing = true;
 
         if (speakerText != null) speakerText.text = speaker;

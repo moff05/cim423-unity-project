@@ -8,8 +8,16 @@ using UnityEngine.InputSystem.Controls;
 // flags that fire constantly, so dialogue skipped itself.
 public static class AdvanceInput
 {
+#if UNITY_EDITOR
+    // Editor-only: lets an automated playthrough click through dialogue.
+    public static bool EditorAutoAdvance;
+#endif
+
     public static bool WasPressedThisFrame()
     {
+#if UNITY_EDITOR
+        if (EditorAutoAdvance) return true;
+#endif
         foreach (var device in InputSystem.devices)
         {
             if (device is Mouse mouse && mouse.leftButton.wasPressedThisFrame) return true;

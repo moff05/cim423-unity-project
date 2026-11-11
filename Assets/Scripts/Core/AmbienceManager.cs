@@ -89,6 +89,10 @@ public class AmbienceManager : MonoBehaviour
                 ambientSource.volume = Mathf.Lerp(ambientSource.volume, Mathf.Lerp(ambientBaseVolume, ambientMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
             if (bassRumbleSource != null)
                 bassRumbleSource.volume = Mathf.Lerp(bassRumbleSource.volume, Mathf.Lerp(bassRumbleBaseVolume, bassRumbleMaxVolume, progress), Time.deltaTime * volumeLerpSpeed);
+            // The drone also sinks in pitch as the player goes deeper, so the
+            // ramp is felt as a change in the room and not only as loudness.
+            if (ambientSource != null)
+                ambientSource.pitch = Mathf.Lerp(ambientSource.pitch, Mathf.Lerp(1f, 0.82f, progress), Time.deltaTime * volumeLerpSpeed);
         }
     }
 }
